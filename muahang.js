@@ -1,4 +1,5 @@
 
+
 // Module quản lý mua hàng
 function initMuaHangModule() {
     // Lắng nghe sự kiện xử lý hóa đơn mua hàng
@@ -125,13 +126,20 @@ async function processPurchaseInvoices() {
     try {
         console.log('Bắt đầu xử lý files:', files);
         
-        // QUAN TRỌNG: Đảm bảo hàm handleZipFiles tồn tại
         if (typeof window.handleZipFiles !== 'function') {
             throw new Error('Hệ thống trích xuất chưa được khởi tạo. Vui lòng tải lại trang.');
         }
         
-        // Sử dụng hàm xử lý hóa đơn từ zip-trichxuat.js
+        // TẠM THỜI VÔ HIỆU HÓA HÀM updateFileStats ĐỂ TRÁNH LỖI
+        const originalUpdateFileStats = window.updateFileStats;
+        window.updateFileStats = function() {
+            console.log('updateFileStats tạm thời bị vô hiệu hóa trong tab Mua Hàng');
+        };
+        
         const results = await window.handleZipFiles(files);
+        
+        // KHÔI PHỤC HÀM SAU KHI XỬ LÝ
+        window.updateFileStats = originalUpdateFileStats;
         
         console.log('Kết quả xử lý:', results);
         
@@ -139,7 +147,6 @@ async function processPurchaseInvoices() {
         loadPurchaseInvoices();
         loadPayableList();
         
-        // Cập nhật danh sách công ty
         if (typeof window.renderCompanyList === 'function') {
             window.renderCompanyList();
         }
@@ -148,9 +155,6 @@ async function processPurchaseInvoices() {
         
     } catch (error) {
         console.error('Lỗi xử lý hóa đơn mua hàng:', error);
-        console.error('Chi tiết lỗi:', error.stack);
-        
-        // Hiển thị thông báo lỗi chi tiết
         alert(`Lỗi xử lý hóa đơn: ${error.message}`);
     }
 }
