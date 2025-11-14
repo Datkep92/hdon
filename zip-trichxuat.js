@@ -22,22 +22,31 @@ function getProductClassification(category) {
 // =======================
 // Hàm kiểm tra chênh lệch hóa đơn (CHUẨN KẾ TOÁN)
 // =======================
+function checkInvoiceDifference(invoice) {
+    const summary = invoice.summary;
+    
+    // Sau khi áp dụng logic điều chỉnh trong parseXmlInvoice, chỉ chấp nhận khớp chính xác (0)
+    const MAX_TOLERANCE = 0; 
 
+    // Kiểm tra chênh lệch
+    // Tổng chênh lệch đã được cập nhật lại sau khi điều chỉnh ở parseXmlInvoice
+    const isExactMatch = Math.abs(summary.totalDifference) <= MAX_TOLERANCE;
+    
+    return {
+        isValid: isExactMatch,
+        totalDifference: summary.totalDifference,
+        calculatedTotal: summary.calculatedTotal,
+        xmlTotal: summary.totalAfterTax,
+        amountDifference: summary.amountDifference,
+        taxDifference: summary.taxDifference,
+        discountDifference: summary.discountDifference
+    };
+}
 
 // =======================
 // Xử lý nhiều ZIP (SỬA LOGIC KIỂM TRA CHÊNH LỆCH)
 // =======================
-
-
-// =======================
-// Tạo / kiểm tra HKD
-// =======================
-/**
- * Hàm xử lý nhiều file ZIP/XML chứa hóa đơn điện tử
- * @param {FileList} files - Danh sách file cần xử lý
- * @returns {Object} Kết quả xử lý
- */
-async function handleZipFiles(files) {
+async function handleZipFiles(files){
     let processedCount = 0;
     let duplicateCount = 0;
     let errorCount = 0;
@@ -45,85 +54,48 @@ async function handleZipFiles(files) {
     
     const fileResults = [];
     
-    console.log(`🔄 Bắt đầu xử lý ${files.length} file`);
-    
-    // Kiểm tra thư viện JSZip
-    if (typeof JSZip === 'undefined') {
-        throw new Error('Thư viện JSZip chưa được tải. Vui lòng kiểm tra kết nối internet.');
-    }
-    
-    // Xử lý từng file một
-    for (const file of files) {
-        console.log(`📁 Đang xử lý file: ${file.name}`);
-        
-        // Kiểm tra định dạng file
-        if (!file.name.toLowerCase().endsWith('.zip') && !file.name.toLowerCase().endsWith('.xml')) {
-            fileResults.push({ 
-                file: file.name, 
-                status: 'error', 
-                message: 'File không phải định dạng ZIP hoặc XML' 
-            });
+    for(const file of files){
+        if(!file.name.toLowerCase().endsWith('.zip') && !file.name.toLowerCase().endsWith('.xml')) {
+            fileResults.push({ file: file.name, status: 'error', message: 'File không phải ZIP/XML' });
             errorCount++;
             continue;
         }
         
         let invoice = null;
         try {
-            // Trích xuất hóa đơn từ file
             invoice = await extractInvoiceFromZip(file);
-            console.log(`✅ Trích xuất thành công: ${file.name}`);
         } catch (error) {
-            console.error(`❌ Lỗi trích xuất file ${file.name}:`, error);
-            fileResults.push({ 
-                file: file.name, 
-                status: 'error', 
-                message: `Lỗi trích xuất: ${error.message}` 
-            });
+            fileResults.push({ file: file.name, status: 'error', message: error.message });
             errorCount++;
             continue;
         }
 
-        // Kiểm tra hóa đơn hợp lệ
-        if (!invoice || !invoice.products || invoice.products.length === 0) {
-            console.warn(`⚠️ File ${file.name} không có dữ liệu hóa đơn hợp lệ`);
-            fileResults.push({ 
-                file: file.name, 
-                status: 'error', 
-                message: 'Không có sản phẩm hoặc dữ liệu không hợp lệ' 
-            });
+        if(!invoice||!invoice.products||invoice.products.length===0){
+            fileResults.push({ file: file.name, status: 'error', message: 'Không có sản phẩm' });
             errorCount++;
             continue;
         }
         
         try {
-            // Lấy thông tin công ty từ hóa đơn
-            const taxCode = invoice.buyerInfo.taxCode || 'UNKNOWN';
+            const taxCode = invoice.buyerInfo.taxCode||'UNKNOWN';
             const companyName = invoice.buyerInfo.name || taxCode;
             
-            console.log(`🏢 Công ty: ${companyName}, MST: ${taxCode}`);
-            
-            // Đảm bảo công ty tồn tại trong dữ liệu
             ensureHkdData(taxCode, companyName);
             
-            // Kiểm tra hóa đơn trùng lặp
-            if (isDuplicate(invoice, taxCode)) {
-                console.log(`🔄 Hóa đơn trùng: ${file.name}`);
-                fileResults.push({ 
-                    file: file.name, 
-                    status: 'duplicate', 
-                    message: 'Hóa đơn đã tồn tại trong hệ thống' 
-                });
+            // Kiểm tra trùng HĐ
+            if(isDuplicate(invoice,taxCode)){
+                fileResults.push({ file: file.name, status: 'duplicate', message: 'Hóa đơn trùng' });
                 duplicateCount++;
                 continue;
             }
             
-            // Kiểm tra chênh lệch số liệu hóa đơn
+            // KIỂM TRA CHÊNH LỆCH TRƯỚC KHI XỬ LÝ
             const differenceCheck = checkInvoiceDifference(invoice);
             
             // Thiết lập trạng thái hóa đơn
             invoice.status = {
                 validation: differenceCheck.isValid ? 'ok' : 'error',
-                stockPosted: false,
+                stockPosted: false, // Mặc định chưa chuyển kho
                 difference: differenceCheck.totalDifference,
                 calculatedTotal: differenceCheck.calculatedTotal,
                 xmlTotal: differenceCheck.xmlTotal
@@ -134,23 +106,23 @@ async function handleZipFiles(files) {
             invoice.extractedAt = new Date().toISOString();
             invoice.sourceFile = file.name;
             
-            // Chỉ chuyển tồn kho nếu không có chênh lệch
-            if (invoice.status.validation === 'ok') {
+            // CHỈ CHUYỂN TỒN KHO NẾU KHÔNG CÓ CHÊNH LỆCH
+            if(invoice.status.validation === 'ok') {
                 updateStock(taxCode, invoice);
                 invoice.status.stockPosted = true;
                 stockPostedCount++;
                 
-                // Tích hợp với hệ thống kế toán
+                // 🔥 QUAN TRỌNG: Tích hợp với hệ thống kế toán
                 if (typeof window.integratePurchaseAccounting === 'function') {
                     window.integratePurchaseAccounting(invoice, taxCode);
                 }
             }
             
-            // Luôn lưu hóa đơn dù có lỗi hay không
-            window.hkdData[taxCode].invoices.push(invoice);
+            // LUÔN LƯU HÓA ĐƠN DÙ CÓ LỖI HAY KHÔNG
+            hkdData[taxCode].invoices.push(invoice);
             
             // Thông báo kết quả
-            if (invoice.status.validation === 'ok') {
+            if(invoice.status.validation === 'ok') {
                 fileResults.push({ 
                     file: file.name, 
                     status: 'success', 
@@ -166,29 +138,13 @@ async function handleZipFiles(files) {
                 processedCount++;
             }
             
-            console.log(`[NHẬP HÓA ĐƠN] MST=${taxCode}, HĐ=${invoice.uniqueKey}, trạng thái=${invoice.status.validation}, tồn kho=${invoice.status.stockPosted}`);
+            console.log(`[NHẬP HĐ] MST=${taxCode}, HĐ=${invoice.uniqueKey}, trạng thái=${invoice.status.validation}, tồn kho=${invoice.status.stockPosted}`);
             
         } catch (error) {
-            console.error(`❌ Lỗi xử lý file ${file.name} (sau trích xuất):`, error);
-            fileResults.push({ 
-                file: file.name, 
-                status: 'error', 
-                message: `Lỗi xử lý: ${error.message}` 
-            });
+            fileResults.push({ file: file.name, status: 'error', message: error.message });
             errorCount++;
+            console.error('Lỗi xử lý file (sau trích xuất):', file.name, error);
         }
-    }
-    
-    // 🔥 QUAN TRỌNG: Cập nhật danh sách công ty sau khi xử lý tất cả files
-    console.log(`🔄 Đang cập nhật danh sách công ty...`);
-    if (typeof window.renderCompanyList === 'function') {
-        window.renderCompanyList();
-        console.log('✅ Đã gọi renderCompanyList');
-    } else if (typeof window.renderCompanyListFallback === 'function') {
-        window.renderCompanyListFallback();
-        console.log('✅ Đã gọi renderCompanyListFallback');
-    } else {
-        console.warn('⚠️ Không tìm thấy hàm render danh sách công ty');
     }
     
     // Cập nhật thống kê
@@ -201,97 +157,27 @@ async function handleZipFiles(files) {
         showFileResults(fileResults);
     }
     
-    console.log(`📊 Kết quả xử lý hoàn tất:
-    • ✅ Thành công: ${processedCount} file
-    • 🔄 Trùng lặp: ${duplicateCount} file  
-    • 📦 Đã chuyển kho: ${stockPostedCount} file
-    • ❌ Lỗi: ${errorCount} file`);
-    
-    return { 
-        processedCount, 
-        duplicateCount, 
-        errorCount, 
-        stockPostedCount,
-        fileResults 
-    };
+    console.log(`Kết quả xử lý: ${processedCount} thành công (${stockPostedCount} đã chuyển kho), ${duplicateCount} trùng, ${errorCount} lỗi`);
+    return { processedCount, duplicateCount, errorCount, stockPostedCount };
 }
 
-/**
- * Đảm bảo công ty tồn tại trong dữ liệu
- * @param {string} taxCode - Mã số thuế
- * @param {string} companyName - Tên công ty
- */
+// =======================
+// Tạo / kiểm tra HKD
+// =======================
 function ensureHkdData(taxCode, companyName = '') {
-    if (!window.hkdData[taxCode]) {
-        window.hkdData[taxCode] = {
+    if (!hkdData[taxCode]) {
+        hkdData[taxCode] = {
             name: companyName || taxCode,
             invoices: [],
             tonkhoMain: [],
             tonkhoMainDefault: null,
-            exports: [],
-            purchaseReceipts: [],
-            saleOrders: [],
-            saleInvoices: [],
-            vouchers: [],
-            accountingTransactions: [],
-            openingBalance: null,
-            fixedAssets: []
+            exports: []
         };
-        console.log(`🏢 Đã tạo mới công ty: ${companyName} (MST: ${taxCode})`);
-    } else if (companyName && window.hkdData[taxCode].name === taxCode) {
+    } else if (companyName && hkdData[taxCode].name === taxCode) {
         // Cập nhật tên công ty nếu chưa có
-        window.hkdData[taxCode].name = companyName;
-        console.log(`🏢 Đã cập nhật tên công ty: ${companyName} (MST: ${taxCode})`);
+        hkdData[taxCode].name = companyName;
     }
 }
-
-/**
- * Kiểm tra hóa đơn trùng lặp
- * @param {Object} invoice - Hóa đơn cần kiểm tra
- * @param {string} taxCode - Mã số thuế công ty
- * @returns {boolean} true nếu trùng
- */
-function isDuplicate(invoice, taxCode) {
-    ensureHkdData(taxCode);
-    const key = `${invoice.invoiceInfo.mccqt}_${invoice.invoiceInfo.symbol}_${invoice.invoiceInfo.number}`;
-    return window.hkdData[taxCode].invoices.some(existingInvoice => 
-        existingInvoice.uniqueKey === key ||
-        (existingInvoice.invoiceInfo.mccqt === invoice.invoiceInfo.mccqt &&
-         existingInvoice.invoiceInfo.symbol === invoice.invoiceInfo.symbol &&
-         existingInvoice.invoiceInfo.number === invoice.invoiceInfo.number)
-    );
-}
-
-/**
- * Kiểm tra chênh lệch số liệu hóa đơn
- * @param {Object} invoice - Hóa đơn cần kiểm tra
- * @returns {Object} Kết quả kiểm tra
- */
-function checkInvoiceDifference(invoice) {
-    const summary = invoice.summary;
-    
-    // Sau khi áp dụng logic điều chỉnh trong parseXmlInvoice, chỉ chấp nhận khớp chính xác
-    const MAX_TOLERANCE = 0;
-
-    // Kiểm tra chênh lệch
-    const isExactMatch = Math.abs(summary.totalDifference) <= MAX_TOLERANCE;
-    
-    return {
-        isValid: isExactMatch,
-        totalDifference: summary.totalDifference,
-        calculatedTotal: summary.calculatedTotal,
-        xmlTotal: summary.totalAfterTax,
-        amountDifference: summary.amountDifference,
-        taxDifference: summary.taxDifference,
-        discountDifference: summary.discountDifference
-    };
-}
-
-// Export các hàm toàn cục
-window.handleZipFiles = handleZipFiles;
-window.ensureHkdData = ensureHkdData;
-window.isDuplicate = isDuplicate;
-window.checkInvoiceDifference = checkInvoiceDifference;
 
 // =======================
 // Hàm loại bỏ dấu tiếng Việt
@@ -726,7 +612,16 @@ function updateStock(taxCode, invoice) {
 // =======================
 // Kiểm tra trùng HĐ
 // =======================
-
+function isDuplicate(invoice, taxCode) {
+    ensureHkdData(taxCode);
+    const key = `${invoice.invoiceInfo.mccqt}_${invoice.invoiceInfo.symbol}_${invoice.invoiceInfo.number}`;
+    return hkdData[taxCode].invoices.some(inv => 
+        inv.uniqueKey === key ||
+        (inv.invoiceInfo.mccqt === invoice.invoiceInfo.mccqt &&
+         inv.invoiceInfo.symbol === invoice.invoiceInfo.symbol &&
+         inv.invoiceInfo.number === invoice.invoiceInfo.number)
+    );
+}
 
 // =======================
 // Trích xuất hóa đơn từ ZIP
