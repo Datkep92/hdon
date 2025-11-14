@@ -262,295 +262,7 @@ function loadPayableList() {
     
     console.log('✅ Đã tải danh sách công nợ');
 }
-async function processPurchaseInvoices() {
-    const fileInput = document.getElementById('purchase-invoice-files');
-    const files = fileInput.files;
 
-    if (files.length === 0) {
-        alert('❌ Vui lòng chọn file hóa đơn mua hàng (ZIP/XML).');
-        return;
-    }
-
-    try {
-        // Kiểm tra chi tiết từng file
-        let fileInfo = '';
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            fileInfo += `\n• ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-        }
-        
-        alert(`📁 Đang xử lý ${files.length} file:${fileInfo}\n\n⏳ Vui lòng chờ trong giây lát...`);
-
-        // Kiểm tra hàm xử lý có tồn tại không
-        if (typeof window.handleZipFiles !== 'function') {
-            throw new Error('Hệ thống trích xuất chưa được khởi tạo. Vui lòng tải lại trang.');
-        }
-        
-        // Kiểm tra dữ liệu công ty
-        if (!window.currentCompany) {
-            throw new Error('Chưa chọn công ty. Vui lòng chọn công ty trước khi import.');
-        }
-
-        // Tạo container thống kê
-        createPurchaseStatsContainer();
-        
-        // Hiển thị thống kê ban đầu
-        updatePurchaseFileStats(files.length, 0, 0, 0, 0);
-        
-        // Xử lý files
-        const results = await window.handleZipFiles(files);
-        
-        // Cập nhật thống kê cuối cùng
-        updatePurchaseFileStats(
-            files.length, 
-            results.processedCount, 
-            results.errorCount, 
-            results.duplicateCount, 
-            results.stockPostedCount
-        );
-        
-        // Hiển thị kết quả chi tiết
-        if (results.fileResults && results.fileResults.length > 0) {
-            showPurchaseFileResults(results.fileResults);
-        }
-        
-        // Cập nhật giao diện
-        loadPurchaseInvoices();
-        loadPayableList();
-        
-        // Cập nhật danh sách công ty
-        if (typeof window.renderCompanyList === 'function') {
-            window.renderCompanyList();
-        }
-        
-        // Hiển thị kết quả tổng quan
-        showPurchaseFinalResult(results, files.length);
-        
-    } catch (error) {
-        alert(`❌ LỖI XỬ LÝ HÓA ĐƠN\n\nChi tiết lỗi: ${error.message}\n\n🔧 Vui lòng kiểm tra:\n• File có đúng định dạng ZIP/XML không\n• File có bị hỏng không\n• Kết nối internet ổn định`);
-    }
-}
-
-function showPurchaseFinalResult(results, totalFiles) {
-    let resultMessage = `📊 KẾT QUẢ XỬ LÝ\n\n`;
-    resultMessage += `📁 Tổng số file: ${totalFiles}\n`;
-    resultMessage += `✅ Thành công: ${results.processedCount}\n`;
-    resultMessage += `🔄 Trùng lặp: ${results.duplicateCount}\n`;
-    resultMessage += `📦 Đã chuyển kho: ${results.stockPostedCount}\n`;
-    resultMessage += `❌ Lỗi: ${results.errorCount}\n\n`;
-    
-    if (results.errorCount > 0) {
-        resultMessage += `⚠️ CÓ ${results.errorCount} FILE LỖI:\n`;
-        if (results.fileResults) {
-            results.fileResults.forEach(result => {
-                if (result.status === 'error') {
-                    resultMessage += `• ${result.file}: ${result.message}\n`;
-                }
-            });
-        }
-        resultMessage += `\n🔧 Nguyên nhân có thể:\n• File không phải ZIP/XML hợp lệ\n• File bị hỏng\n• Định dạng XML không đúng chuẩn`;
-    } else if (results.processedCount === 0) {
-        resultMessage += `🤔 KHÔNG CÓ FILE NÀO ĐƯỢC XỬ LÝ\n\n🔍 Nguyên nhân có thể:\n• Tất cả file đã tồn tại (trùng lặp)\n• File không chứa hóa đơn hợp lệ\n• Định dạng file không được hỗ trợ`;
-    } else {
-        resultMessage += `🎉 XỬ LÝ THÀNH CÔNG!\n\n💾 Dữ liệu đã được cập nhật vào:\n• Danh sách hóa đơn mua hàng\n• Tồn kho\n• Công nợ phải trả\n• Sổ sách kế toán`;
-    }
-    
-    alert(resultMessage);
-}
-
-function showPurchaseFileResults(results) {
-    let resultsContainer = document.getElementById('purchase-file-results');
-    
-    // Tạo container nếu chưa có
-    if (!resultsContainer) {
-        const statsContainer = document.getElementById('purchase-file-stats');
-        if (statsContainer) {
-            const resultsHtml = `
-                <div class="card" id="purchase-file-results">
-                    <div class="card-header">📋 Chi Tiết Kết Quả</div>
-                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>File</th>
-                                    <th>Trạng Thái</th>
-                                    <th>Chi Tiết</th>
-                                </tr>
-                            </thead>
-                            <tbody id="purchase-file-results-list">
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-            statsContainer.insertAdjacentHTML('afterend', resultsHtml);
-            resultsContainer = document.getElementById('purchase-file-results');
-        }
-    }
-    
-    const resultsList = document.getElementById('purchase-file-results-list');
-    if (!resultsList) return;
-    
-    // Xóa nội dung cũ
-    resultsList.innerHTML = '';
-    
-    if (results.length === 0) {
-        if (resultsContainer) resultsContainer.classList.add('hidden');
-        return;
-    }
-    
-    // Thêm các dòng kết quả
-    results.forEach(result => {
-        const row = document.createElement('tr');
-        
-        let statusClass = '';
-        let statusIcon = '';
-        let statusText = '';
-        
-        switch (result.status) {
-            case 'success':
-                statusClass = 'text-success';
-                statusIcon = '✅';
-                statusText = 'Thành công';
-                break;
-            case 'duplicate':
-                statusClass = 'text-warning';
-                statusIcon = '⚠️';
-                statusText = 'Trùng lặp';
-                break;
-            case 'warning':
-                statusClass = 'text-warning';
-                statusIcon = '⚠️';
-                statusText = 'Cảnh báo';
-                break;
-            default:
-                statusClass = 'text-danger';
-                statusIcon = '❌';
-                statusText = 'Lỗi';
-        }
-        
-        row.innerHTML = `
-            <td style="font-family: monospace; font-size: 12px;">${result.file || 'Unknown'}</td>
-            <td class="${statusClass}">${statusIcon} ${statusText}</td>
-            <td>${result.message || 'Không có thông tin'}</td>
-        `;
-        resultsList.appendChild(row);
-    });
-    
-    // Hiển thị container
-    if (resultsContainer) {
-        resultsContainer.classList.remove('hidden');
-    }
-}
-
-// Thêm hàm kiểm tra file trước khi xử lý
-function validateFilesBeforeProcessing(files) {
-    const errors = [];
-    
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const fileName = file.name.toLowerCase();
-        
-        // Kiểm tra định dạng file
-        if (!fileName.endsWith('.zip') && !fileName.endsWith('.xml')) {
-            errors.push(`File "${file.name}" không phải định dạng ZIP/XML`);
-        }
-        
-        // Kiểm tra kích thước file
-        if (file.size === 0) {
-            errors.push(`File "${file.name}" bị rỗng (0 KB)`);
-        }
-        
-        // Kiểm tra kích thước quá lớn
-        if (file.size > 50 * 1024 * 1024) { // 50MB
-            errors.push(`File "${file.name}" quá lớn (${(file.size / 1024 / 1024).toFixed(1)} MB). Tối đa 50MB`);
-        }
-    }
-    
-    return errors;
-}
-
-// Cập nhật hàm processPurchaseInvoices để kiểm tra trước
-async function processPurchaseInvoices() {
-    const fileInput = document.getElementById('purchase-invoice-files');
-    const files = fileInput.files;
-
-    if (files.length === 0) {
-        alert('❌ Vui lòng chọn file hóa đơn mua hàng (ZIP/XML).');
-        return;
-    }
-
-    try {
-        // Kiểm tra file trước khi xử lý
-        const validationErrors = validateFilesBeforeProcessing(files);
-        if (validationErrors.length > 0) {
-            let errorMessage = '❌ LỖI KIỂM TRA FILE:\n\n';
-            validationErrors.forEach(error => {
-                errorMessage += `• ${error}\n`;
-            });
-            errorMessage += '\n🔧 Vui lòng chọn file hợp lệ và thử lại.';
-            alert(errorMessage);
-            return;
-        }
-        
-        // Kiểm tra chi tiết từng file
-        let fileInfo = '';
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            fileInfo += `\n• ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-        }
-        
-        alert(`📁 Đang xử lý ${files.length} file:${fileInfo}\n\n⏳ Vui lòng chờ trong giây lát...`);
-
-        // Kiểm tra hàm xử lý có tồn tại không
-        if (typeof window.handleZipFiles !== 'function') {
-            throw new Error('Hệ thống trích xuất chưa được khởi tạo. Vui lòng tải lại trang.');
-        }
-        
-        // Kiểm tra dữ liệu công ty
-        if (!window.currentCompany) {
-            throw new Error('Chưa chọn công ty. Vui lòng chọn công ty trước khi import.');
-        }
-
-        // Tạo container thống kê
-        createPurchaseStatsContainer();
-        
-        // Hiển thị thống kê ban đầu
-        updatePurchaseFileStats(files.length, 0, 0, 0, 0);
-        
-        // Xử lý files
-        const results = await window.handleZipFiles(files);
-        
-        // Cập nhật thống kê cuối cùng
-        updatePurchaseFileStats(
-            files.length, 
-            results.processedCount, 
-            results.errorCount, 
-            results.duplicateCount, 
-            results.stockPostedCount
-        );
-        
-        // Hiển thị kết quả chi tiết
-        if (results.fileResults && results.fileResults.length > 0) {
-            showPurchaseFileResults(results.fileResults);
-        }
-        
-        // Cập nhật giao diện
-        loadPurchaseInvoices();
-        loadPayableList();
-        
-        // Cập nhật danh sách công ty
-        if (typeof window.renderCompanyList === 'function') {
-            window.renderCompanyList();
-        }
-        
-        // Hiển thị kết quả tổng quan
-        showPurchaseFinalResult(results, files.length);
-        
-    } catch (error) {
-        alert(`❌ LỖI XỬ LÝ HÓA ĐƠN\n\nChi tiết lỗi: ${error.message}\n\n🔧 Vui lòng kiểm tra:\n• File có đúng định dạng ZIP/XML không\n• File có bị hỏng không\n• Kết nối internet ổn định\n• Thử lại với file khác`);
-    }
-}
 function viewPurchaseInvoiceDetail(invoiceId) {
     if (!window.currentCompany) {
         alert('👈 Vui lòng chọn công ty trước.');
@@ -813,7 +525,136 @@ function printPurchaseReceipts() {
 function printPurchaseLedger() {
     alert('🖨️ Chức năng in sổ chi tiết mua hàng đang được phát triển');
 }
+async function processPurchaseInvoices() {
+    const fileInput = document.getElementById('purchase-invoice-files');
+    const files = fileInput.files;
 
+    if (files.length === 0) {
+        alert('❌ Vui lòng chọn file hóa đơn mua hàng (ZIP/XML).');
+        return;
+    }
+
+    try {
+        // Hiển thị thông tin file được chọn
+        let fileInfo = '📁 DANH SÁCH FILE ĐÃ CHỌN:\n';
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            fileInfo += `\n${i + 1}. ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+        }
+        alert(fileInfo + '\n\n⏳ Đang xử lý...');
+
+        // Kiểm tra hàm xử lý
+        if (typeof window.handleZipFiles !== 'function') {
+            throw new Error('Hệ thống trích xuất chưa được khởi tạo');
+        }
+        
+        // Kiểm tra công ty
+        if (!window.currentCompany) {
+            throw new Error('Vui lòng chọn công ty trước');
+        }
+
+        // Tạo container thống kê
+        createPurchaseStatsContainer();
+        updatePurchaseFileStats(files.length, 0, 0, 0, 0);
+        
+        // GHI ĐÈ HÀM HIỂN THỊ LỖI ĐỂ BẮT TẤT CẢ THÔNG BÁO
+        const originalAlert = window.alert;
+        const allAlerts = [];
+        window.alert = function(message) {
+            allAlerts.push(message);
+            console.log('ALERT:', message); // Vẫn log ra console phòng trường hợp
+        };
+
+        // Xử lý files
+        const results = await window.handleZipFiles(files);
+        
+        // KHÔI PHỤC HÀM ALERT
+        window.alert = originalAlert;
+
+        // HIỂN THỊ TẤT CẢ THÔNG BÁO LỖI TỪ QUÁ TRÌNH XỬ LÝ
+        if (allAlerts.length > 0) {
+            let alertMessage = '📢 THÔNG BÁO TRONG QUÁ TRÌNH XỬ LÝ:\n\n';
+            allAlerts.forEach((msg, index) => {
+                alertMessage += `${index + 1}. ${msg}\n`;
+            });
+            alert(alertMessage);
+        }
+
+        // Cập nhật thống kê
+        updatePurchaseFileStats(
+            files.length, 
+            results.processedCount, 
+            results.errorCount, 
+            results.duplicateCount, 
+            results.stockPostedCount
+        );
+        
+        // Hiển thị kết quả chi tiết
+        if (results.fileResults && results.fileResults.length > 0) {
+            showPurchaseFileResults(results.fileResults);
+        }
+        
+        // Cập nhật giao diện
+        loadPurchaseInvoices();
+        loadPayableList();
+        
+        if (typeof window.renderCompanyList === 'function') {
+            window.renderCompanyList();
+        }
+        
+        // HIỂN THỊ KẾT QUẢ CUỐI CÙNG
+        showPurchaseFinalResult(results, files.length);
+        
+    } catch (error) {
+        alert(`❌ LỖI XỬ LÝ:\n\n${error.message}\n\n💡 Hướng giải quyết:\n1. Kiểm tra file có đúng định dạng ZIP/XML\n2. File không bị hỏng\n3. Đã chọn công ty\n4. Thử lại với file khác`);
+    }
+}
+
+function showPurchaseFinalResult(results, totalFiles) {
+    let resultMessage = `📊 KẾT QUẢ XỬ LÝ ${totalFiles} FILE:\n\n`;
+    
+    if (results.processedCount === 0 && results.errorCount === 0 && results.duplicateCount === 0) {
+        resultMessage += `🤔 KHÔNG CÓ FILE NÀO ĐƯỢC XỬ LÝ!\n\n`;
+        resultMessage += `🔍 NGUYÊN NHÂN CÓ THỂ:\n`;
+        resultMessage += `• File không chứa hóa đơn hợp lệ\n`;
+        resultMessage += `• Định dạng XML không đúng chuẩn\n`;
+        resultMessage += `• File ZIP không có file XML bên trong\n`;
+        resultMessage += `• Lỗi kết nối hoặc bộ nhớ\n\n`;
+        resultMessage += `💡 THỬ LẠI VỚI:\n`;
+        resultMessage += `• File ZIP/XML từ nguồn khác\n`;
+        resultMessage += `• File mẫu để kiểm tra\n`;
+        resultMessage += `• Reset trình duyệt và thử lại`;
+    } else {
+        resultMessage += `✅ Thành công: ${results.processedCount} file\n`;
+        resultMessage += `🔄 Trùng lặp: ${results.duplicateCount} file\n`;
+        resultMessage += `📦 Đã chuyển kho: ${results.stockPostedCount} file\n`;
+        resultMessage += `❌ Lỗi: ${results.errorCount} file\n\n`;
+        
+        if (results.errorCount > 0 && results.fileResults) {
+            resultMessage += `📋 CHI TIẾT LỖI:\n`;
+            results.fileResults.forEach(result => {
+                if (result.status === 'error') {
+                    resultMessage += `• ${result.file}: ${result.message}\n`;
+                }
+            });
+        }
+        
+        if (results.processedCount > 0) {
+            resultMessage += `\n💾 Dữ liệu đã được cập nhật vào hệ thống`;
+        }
+    }
+    
+    alert(resultMessage);
+}
+
+// THÊM HÀM XỬ LÝ LỖI TOÀN CỤC
+window.addEventListener('error', function(event) {
+    alert(`🚨 LỖI HỆ THỐNG:\n\n${event.error?.message || event.message}\n\nVui lòng thử lại hoặc liên hệ hỗ trợ`);
+});
+
+window.addEventListener('unhandledrejection', function(event) {
+    alert(`🚨 LỖI BẤT NGỜ:\n\n${event.reason?.message || event.reason}\n\nVui lòng thử lại hoặc liên hệ hỗ trợ`);
+});
 function printPurchaseInvoice(invoiceId) {
     alert(`🖨️ In hóa đơn ${invoiceId}\n\nChức năng đang được phát triển...`);
 }
