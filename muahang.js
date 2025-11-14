@@ -21,7 +21,48 @@ function initMuaHangModule() {
 }
 
 
-
+function updateFileStats(total, success, error, duplicate, stockPosted = 0) {
+    console.log('📊 Cập nhật thống kê:', {total, success, error, duplicate, stockPosted});
+    
+    // KIỂM TRA XEM ĐANG Ở TAB NÀO
+    const currentTab = document.querySelector('.nav-tab.active')?.getAttribute('data-tab');
+    console.log('📍 Tab hiện tại:', currentTab);
+    
+    if (currentTab === 'mua-hang') {
+        // Nếu đang ở tab Mua Hàng, sử dụng hàm của tab Mua Hàng
+        if (typeof updatePurchaseFileStats === 'function') {
+            updatePurchaseFileStats(total, success, error, duplicate, stockPosted);
+        } else {
+            console.warn('⚠️ Hàm updatePurchaseFileStats không tồn tại');
+        }
+        return;
+    }
+    
+    // Nếu đang ở tab Trích Xuất HĐ (tab cũ), cập nhật các phần tử cũ
+    try {
+        const totalFilesElem = document.getElementById('total-files');
+        const successCountElem = document.getElementById('success-count');
+        const duplicateCountElem = document.getElementById('duplicate-count');
+        const errorCountElem = document.getElementById('error-count');
+        const stockPostedElem = document.getElementById('stock-posted-count');
+        
+        // CHỈ CẬP NHẬT NẾU PHẦN TỬ TỒN TẠI
+        if (totalFilesElem) totalFilesElem.textContent = total;
+        if (successCountElem) successCountElem.textContent = success;
+        if (duplicateCountElem) duplicateCountElem.textContent = duplicate;
+        if (errorCountElem) errorCountElem.textContent = error;
+        if (stockPostedElem) stockPostedElem.textContent = stockPosted;
+        
+        // Hiển thị container thống kê nếu tồn tại
+        const fileStatsElem = document.getElementById('file-stats');
+        if (fileStatsElem) {
+            fileStatsElem.classList.remove('hidden');
+        }
+        
+    } catch (error) {
+        console.warn('⚠️ Không thể cập nhật thống kê tab cũ:', error.message);
+    }
+}
 function createPurchaseStatsContainer() {
     // Kiểm tra xem container đã tồn tại chưa
     if (document.getElementById('purchase-file-stats')) {
