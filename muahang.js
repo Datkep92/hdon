@@ -13,7 +13,106 @@ function initMuaHangModule() {
     // Tải công nợ phải trả
     loadPayableList();
 }
+// Thêm vào file muahang.js
+function updatePurchaseFileStats(total, success, error, duplicate, stockPosted = 0) {
+    // Tạo hoặc cập nhật phần tử hiển thị thống kê trong tab Mua Hàng
+    let statsContainer = document.getElementById('purchase-file-stats');
+    
+    if (!statsContainer) {
+        // Tạo container thống kê nếu chưa có
+        const fileInputSection = document.querySelector('#mua-hang .card:first-child');
+        if (fileInputSection) {
+            const statsHtml = `
+                <div class="card" id="purchase-file-stats">
+                    <div class="card-header">Thống Kê Xử Lý</div>
+                    <div class="stats-grid">
+                        <p>Tổng số file: <span id="purchase-total-files" class="stat-number">0</span></p>
+                        <p class="text-success">Thành công: <span id="purchase-success-count" class="stat-number">0</span></p>
+                        <p class="text-warning">Trùng lặp: <span id="purchase-duplicate-count" class="stat-number">0</span></p>
+                        <p class="text-danger">Lỗi: <span id="purchase-error-count" class="stat-number">0</span></p>
+                        <p class="text-info">Đã chuyển kho: <span id="purchase-stock-posted-count" class="stat-number">0</span></p>
+                    </div>
+                </div>
+            `;
+            fileInputSection.insertAdjacentHTML('afterend', statsHtml);
+            statsContainer = document.getElementById('purchase-file-stats');
+        }
+    }
+    
+    if (statsContainer) {
+        document.getElementById('purchase-total-files').textContent = total;
+        document.getElementById('purchase-success-count').textContent = success;
+        document.getElementById('purchase-duplicate-count').textContent = duplicate;
+        document.getElementById('purchase-error-count').textContent = error;
+        
+        const stockPostedElement = document.getElementById('purchase-stock-posted-count');
+        if (stockPostedElement) {
+            stockPostedElement.textContent = stockPosted;
+        }
+        
+        statsContainer.classList.remove('hidden');
+    }
+}
 
+function showPurchaseFileResults(results) {
+    let resultsContainer = document.getElementById('purchase-file-results');
+    
+    if (!resultsContainer) {
+        // Tạo container kết quả nếu chưa có
+        const statsContainer = document.getElementById('purchase-file-stats');
+        if (statsContainer) {
+            const resultsHtml = `
+                <div class="card" id="purchase-file-results">
+                    <div class="card-header">Chi Tiết Kết Quả</div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>File</th>
+                                <th>Trạng Thái</th>
+                                <th>Chi Tiết</th>
+                            </tr>
+                        </thead>
+                        <tbody id="purchase-file-results-list">
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            statsContainer.insertAdjacentHTML('afterend', resultsHtml);
+            resultsContainer = document.getElementById('purchase-file-results');
+        }
+    }
+    
+    const resultsList = document.getElementById('purchase-file-results-list');
+    if (!resultsList) return;
+    
+    resultsList.innerHTML = '';
+    
+    if (results.length === 0) {
+        if (resultsContainer) resultsContainer.classList.add('hidden');
+        return;
+    }
+    
+    if (resultsContainer) resultsContainer.classList.remove('hidden');
+
+    results.forEach(result => {
+        const row = document.createElement('tr');
+        let statusClass = '';
+        if (result.status === 'success') {
+            statusClass = 'text-success';
+        } else if (result.status === 'duplicate') {
+            statusClass = 'text-warning';
+        } else {
+            statusClass = 'text-danger';
+        }
+        
+        row.innerHTML = `
+            <td>${result.file}</td>
+            <td class="${statusClass}">${result.status === 'success' ? '✅ Thành công' : result.status === 'duplicate' ? '⚠️ Trùng' : '❌ Lỗi'}</td>
+            <td>${result.message}</td>
+        `;
+        resultsList.appendChild(row);
+    });
+}
 async function processPurchaseInvoices() {
     const fileInput = document.getElementById('purchase-invoice-files');
     const files = fileInput.files;
