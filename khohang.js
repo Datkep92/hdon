@@ -14,14 +14,6 @@ function initKhoHangModule() {
         generateReportButton.addEventListener('click', generateStockReport);
     }
 
-    // Lắng nghe sự kiện thay đổi bộ lọc phân loại
-    const categoryFilter = document.getElementById('category-filter');
-    if (categoryFilter) {
-        categoryFilter.addEventListener('change', function(e) {
-            loadProductCatalog();
-        });
-    }
-
     // Tải danh mục hàng hóa
     loadProductCatalog();
     
@@ -49,26 +41,11 @@ function loadProductCatalog(searchTerm = '') {
         return;
     }
 
-    // Lấy giá trị bộ lọc
-    const categoryFilter = document.getElementById('category-filter');
-    const selectedCategory = categoryFilter ? categoryFilter.value : 'all';
-
     const lowerSearchTerm = searchTerm.toLowerCase();
     let filteredItems = stockItems;
 
-    // Lọc theo phân loại
-    if (selectedCategory !== 'all') {
-        filteredItems = filteredItems.filter(item => {
-            if (selectedCategory === 'hang_hoa') return item.category === 'hang_hoa';
-            if (selectedCategory === 'chiet_khau') return item.category === 'chiet_khau';
-            if (selectedCategory === 'khuyen_mai') return item.category === 'khuyen_mai';
-            return true;
-        });
-    }
-
-    // Lọc theo từ khóa tìm kiếm
     if (searchTerm) {
-        filteredItems = filteredItems.filter(item => 
+        filteredItems = stockItems.filter(item => 
             item.msp.toLowerCase().includes(lowerSearchTerm) ||
             item.name.toLowerCase().includes(lowerSearchTerm)
         );
@@ -82,26 +59,9 @@ function loadProductCatalog(searchTerm = '') {
     filteredItems.forEach((product, index) => {
         const row = document.createElement('tr');
         
-        // Hiển thị phân loại
-        let categoryDisplay = '';
-        switch(product.category) {
-            case 'hang_hoa':
-                categoryDisplay = 'Hàng hóa';
-                break;
-            case 'chiet_khau':
-                categoryDisplay = 'Chiết khấu';
-                break;
-            case 'khuyen_mai':
-                categoryDisplay = 'Khuyến mãi';
-                break;
-            default:
-                categoryDisplay = product.category || 'Hàng hóa';
-        }
-        
         row.innerHTML = `
             <td><strong>${product.msp}</strong></td>
             <td>${product.name}</td>
-            <td>${categoryDisplay}</td>
             <td>${product.unit}</td>
             <td>${product.quantity.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}</td>
             <td>${window.formatCurrency(product.avgPrice)}</td>
@@ -134,9 +94,9 @@ function loadStockCards() {
         return;
     }
 
-    // Hiển thị 5 sản phẩm có số lượng tồn cao nhất (chỉ hàng hóa)
+    // Hiển thị 5 sản phẩm có số lượng tồn cao nhất
     const topProducts = stockItems
-        .filter(item => item.quantity > 0 && item.category === 'hang_hoa')
+        .filter(item => item.quantity > 0)
         .sort((a, b) => b.quantity - a.quantity)
         .slice(0, 5);
 
@@ -300,7 +260,6 @@ function adjustStock(msp) {
         <div class="card">
             <div class="card-header">Thông Tin Hiện Tại</div>
             <p><strong>Sản phẩm:</strong> ${product.name} (${msp})</p>
-            <p><strong>Phân loại:</strong> ${getCategoryDisplayName(product.category)}</p>
             <p><strong>Tồn kho hiện tại:</strong> ${product.quantity.toLocaleString('vi-VN', { maximumFractionDigits: 2 })} ${product.unit}</p>
         </div>
         <div style="text-align: right; margin-top: 20px;">
@@ -468,7 +427,6 @@ function generateStockReport() {
                     <tr>
                         <th>MSP</th>
                         <th>Tên hàng hóa</th>
-                        <th>Phân loại</th>
                         <th>ĐVT</th>
                         <th>Số lượng</th>
                         <th>Đơn giá TB</th>
@@ -489,7 +447,6 @@ function generateStockReport() {
             <tr>
                 <td>${item.msp}</td>
                 <td>${item.name}</td>
-                <td>${getCategoryDisplayName(item.category)}</td>
                 <td>${item.unit}</td>
                 <td>${item.quantity.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}</td>
                 <td>${window.formatCurrency(item.avgPrice)}</td>
@@ -502,7 +459,7 @@ function generateStockReport() {
                 </tbody>
                 <tfoot>
                     <tr style="font-weight: bold;">
-                        <td colspan="4">Tổng cộng</td>
+                        <td colspan="3">Tổng cộng</td>
                         <td>${totalQuantity.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}</td>
                         <td></td>
                         <td>${window.formatCurrency(totalValue)}</td>
@@ -554,20 +511,6 @@ function getAggregatedStock(hkd) {
     });
     
     return aggregatedStock;
-}
-
-// Hàm hiển thị tên phân loại
-function getCategoryDisplayName(category) {
-    switch(category) {
-        case 'hang_hoa':
-            return 'Hàng hóa';
-        case 'chiet_khau':
-            return 'Chiết khấu';
-        case 'khuyen_mai':
-            return 'Khuyến mãi';
-        default:
-            return category || 'Hàng hóa';
-    }
 }
 
 // Hàm in ấn

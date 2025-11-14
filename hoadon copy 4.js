@@ -1577,7 +1577,28 @@ function showSupplierHistory(taxCode) {
     window.showModal(`📊 Lịch Sử Hóa Đơn - ${supplierName}`, historyHtml, 'modal-lg');
 }
 
-
+function addDebugButton() {
+    // Kiểm tra đã có nút debug chưa
+    if (document.getElementById('debug-filter-btn')) {
+        return;
+    }
+    
+    const debugBtn = document.createElement('button');
+    debugBtn.id = 'debug-filter-btn';
+    debugBtn.innerHTML = '🐛 Debug Filter';
+    debugBtn.className = 'btn btn-sm btn-warning';
+    debugBtn.style.position = 'fixed';
+    debugBtn.style.top = '10px';
+    debugBtn.style.right = '10px';
+    debugBtn.style.zIndex = '9999';
+    debugBtn.onclick = function() {
+        debugFilterStatus();
+        forceInitFilters();
+    };
+    
+    document.body.appendChild(debugBtn);
+    console.log('✅ Đã thêm nút debug');
+}
 
 function initPayableFilter() {
     console.log('🔄 initPayableFilter() called');
@@ -1706,6 +1727,8 @@ function initPurchaseInvoiceFilterModule() {
 function forceInitFilters() {
     console.log('🔧 FORCE khởi tạo bộ lọc...');
     
+    // DEBUG CẤU TRÚC TRƯỚC
+    debugTabStructure();
     
     window.purchaseFilterInitialized = false;
     window.payableFilterInitialized = false;
@@ -1718,7 +1741,21 @@ function forceInitFilters() {
 // THÊM NÚT DEBUG VÀO GIAO DIỆN
 // =======================
 
-
+function addDebugButton() {
+    const debugBtn = document.createElement('button');
+    debugBtn.innerHTML = '🐛 Debug Filter';
+    debugBtn.className = 'btn btn-sm btn-warning';
+    debugBtn.style.position = 'fixed';
+    debugBtn.style.top = '10px';
+    debugBtn.style.right = '10px';
+    debugBtn.style.zIndex = '9999';
+    debugBtn.onclick = function() {
+        debugFilterStatus();
+        forceInitFilters();
+    };
+    
+    document.body.appendChild(debugBtn);
+}
 
 // =======================
 // KHỞI TẠO KHI TẢI TRANG
@@ -1728,6 +1765,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Khởi tạo modules lọc...');
     
     // Thêm nút debug
+    addDebugButton();
     
     // Chỉ gọi module chính
     initPurchaseInvoiceFilterModule();
@@ -2271,7 +2309,14 @@ function addResetButtons() {
     }
 }
 
-
+function debugFilterStatus() {
+    console.log('🔍 DEBUG FILTER STATUS:');
+    console.log('- purchaseFilterInitialized:', window.purchaseFilterInitialized);
+    console.log('- payableFilterInitialized:', window.payableFilterInitialized);
+    console.log('- purchase-filter exists:', !!document.getElementById('purchase-invoice-filter'));
+    console.log('- payable-filter exists:', !!document.getElementById('payable-filter'));
+    console.log('- Tab Mua Hang active:', document.getElementById('mua-hang')?.classList.contains('active'));
+}
 
 // =======================
 // EXPORT FUNCTIONS
@@ -2695,6 +2740,7 @@ window.loadMorePayable = loadMorePayable;
 window.calculateSupplierDebt = calculateSupplierDebt;
 window.renderFilteredPayableList = renderFilteredPayableList;
 window.updatePayableFilterStats = updatePayableFilterStats;
+window.debugFilterStatus = debugFilterStatus;
 window.forceInitFilters = forceInitFilters;
 window.resetPurchaseFilter = resetPurchaseFilter;
 window.resetPayableFilter = resetPayableFilter;

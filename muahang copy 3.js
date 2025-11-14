@@ -500,7 +500,6 @@ function loadPurchaseInvoices() {
 
         row.className = statusClass;
         row.innerHTML = `
-            <td>${index + 1}</td>
             <td><strong>${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}</strong></td>
             <td>${window.formatDate(invoice.invoiceInfo.date)}</td>
             <td>${invoice.sellerInfo.name}</td>

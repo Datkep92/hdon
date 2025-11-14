@@ -51,6 +51,85 @@ async function processImmediateErrors(results) {
 
 
 
+// =======================
+// THÊM CSS CHO MODAL
+// =======================
+function addProcessingModalStyles() {
+    const styles = `
+        <style>
+        .processing-choice-modal .mode-option {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .processing-choice-modal .mode-option:hover {
+            border-color: #007bff;
+            background: #f8f9fa;
+        }
+        
+        .processing-choice-modal .mode-option.recommended {
+            border-color: #28a745;
+            background: #f8fff9;
+        }
+        
+        .processing-choice-modal input[type="radio"] {
+            margin-right: 10px;
+            margin-top: 5px;
+        }
+        
+        .processing-choice-modal .mode-icon {
+            font-size: 24px;
+            margin-right: 15px;
+        }
+        
+        .processing-choice-modal .mode-content {
+            flex: 1;
+        }
+        
+        .processing-choice-modal .mode-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        
+        .processing-choice-modal .mode-desc {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.4;
+        }
+        
+        .mode-preview {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        
+        .mode-preview h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        
+        .mode-preview ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .mode-preview li {
+            margin-bottom: 5px;
+        }
+        </style>
+    `;
+    
+    document.head.insertAdjacentHTML('beforeend', styles);
+}
 
 // =======================
 // HÀM PHỤ TRỢ
@@ -341,6 +420,9 @@ function editPurchaseInvoice(invoiceId) {
     }
 }
 
+// =======================
+// SỬA HÀM UPDATEPRODUCTFIELD - XỬ LÝ CẬP NHẬT CHIẾT KHẤU
+// =======================
 function updateProductField(invoiceId, productIndex, field, value) {
     if (!window.currentCompany || !window.hkdData) {
         console.error('❌ Chưa chọn công ty hoặc dữ liệu không tồn tại');
@@ -418,6 +500,37 @@ function addNewProduct(invoiceId) {
 
 
 
+// =======================
+// CẬP NHẬT HÀM INITMUAHANGMODULE - THÊM CSS CHIẾT KHẤU
+// =======================
+function initMuaHangModule() {
+    console.log('🔄 Đang khởi tạo module Mua Hàng...');
+    
+    // Kiểm tra hàm modal
+    checkModalFunction();
+    
+    // Thêm CSS
+    addProcessingModalStyles();
+    addEditModalStyles();
+    
+    // Lắng nghe sự kiện xử lý hóa đơn mua hàng
+    const processButton = document.getElementById('process-purchase-invoices');
+    if (processButton) {
+        processButton.addEventListener('click', processPurchaseInvoices);
+        console.log('✅ Đã gắn sự kiện cho nút xử lý hóa đơn');
+    } else {
+        console.error('❌ Không tìm thấy nút process-purchase-invoices');
+    }
+
+    // Tải danh sách hóa đơn mua hàng
+    loadPurchaseInvoices();
+    
+    // Tải công nợ phải trả
+    loadPayableList();
+    
+    console.log('✅ Module Mua Hàng đã khởi tạo xong');
+}
+
 
 function updateFileStats(total, success, error, duplicate, stockPosted = 0) {
     console.log('📊 Cập nhật thống kê:', {total, success, error, duplicate, stockPosted});
@@ -467,7 +580,52 @@ function updateFileStats(total, success, error, duplicate, stockPosted = 0) {
 }
 */
 
-
+// GIỮ LẠI HÀM createPurchaseStatsContainer VÀ updatePurchaseFileStats
+function createPurchaseStatsContainer() {
+    // KIỂM TRA KỸ TRƯỚC KHI TẠO
+    const existingStats = document.getElementById('purchase-file-stats');
+    if (existingStats) {
+        existingStats.remove(); // Xóa cái cũ nếu tồn tại
+    }
+    
+    const fileInputSection = document.querySelector('#mua-hang .card:first-child');
+    if (!fileInputSection) {
+        console.error('❌ Không tìm thấy section file input');
+        return;
+    }
+    
+    // Tạo HTML cho thống kê
+    const statsHtml = `
+        <div class="card" id="purchase-file-stats">
+            <div class="card-header">📊 Thống Kê Xử Lý</div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-label">Tổng số file</div>
+                    <div id="purchase-total-files" class="stat-value">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label text-success">Thành công</div>
+                    <div id="purchase-success-count" class="stat-value">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label text-warning">Trùng lặp</div>
+                    <div id="purchase-duplicate-count" class="stat-value">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label text-danger">Lỗi</div>
+                    <div id="purchase-error-count" class="stat-value">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label text-info">Đã chuyển kho</div>
+                    <div id="purchase-stock-posted-count" class="stat-value">0</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    fileInputSection.insertAdjacentHTML('afterend', statsHtml);
+    console.log('✅ Đã tạo container thống kê');
+}
 
 // THÊM HÀM HIỂN THỊ KẾT QUẢ FILE BỊ THIẾU
 function showPurchaseFileResults(fileResults) {
@@ -630,6 +788,7 @@ function showPurchaseSuccessMessage(results) {
     
     alert(message);
 }
+
 
 
 function loadPayableList() {
@@ -836,7 +995,10 @@ function makePayment(taxCode) {
     alert(`💳 Thanh toán cho nhà cung cấp ${taxCode}\n\nChức năng đang được phát triển...`);
 }
 
-
+// Hàm in ấn
+function printPurchaseInvoices() {
+    alert('🖨️ Chức năng in hóa đơn mua hàng đang được phát triển');
+}
 
 function printPurchaseReceipts() {
     alert('🖨️ Chức năng in phiếu nhập kho đang được phát triển');
@@ -904,7 +1066,77 @@ function renderCompanyListFallback() {
     
     console.log(`✅ Đã render ${companies.length} công ty`);
 }
+function loadPurchaseInvoices() {
+    const invoiceList = document.getElementById('purchase-invoice-list');
+    if (!invoiceList) {
+        console.error('❌ Không tìm thấy danh sách hóa đơn');
+        return;
+    }
 
+    if (!window.currentCompany || !window.hkdData[window.currentCompany]) {
+        invoiceList.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px;">👈 Vui lòng chọn công ty</td></tr>';
+        return;
+    }
+
+    const hkd = window.hkdData[window.currentCompany];
+    const invoices = hkd.invoices || [];
+
+    invoiceList.innerHTML = '';
+
+    if (invoices.length === 0) {
+        invoiceList.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px;">📭 Chưa có hóa đơn mua hàng nào</td></tr>';
+        return;
+    }
+
+    // Sắp xếp hóa đơn theo ngày (mới nhất trước)
+    const sortedInvoices = [...invoices].sort((a, b) => 
+        new Date(b.invoiceInfo.date) - new Date(a.invoiceInfo.date)
+    );
+
+    console.log(`📄 Đang tải ${sortedInvoices.length} hóa đơn`);
+
+    sortedInvoices.forEach((invoice, index) => {
+        const row = document.createElement('tr');
+        
+        // Xác định trạng thái
+        let statusBadge = '';
+        let statusClass = '';
+        
+        if (invoice.status && invoice.status.stockPosted) {
+            statusBadge = '<span class="badge badge-success">✅ Đã nhập kho</span>';
+            statusClass = 'table-success';
+        } else if (invoice.status && invoice.status.validation === 'error') {
+            statusBadge = '<span class="badge badge-danger">❌ Lỗi</span>';
+            statusClass = 'table-danger';
+        } else {
+            statusBadge = '<span class="badge badge-warning">⚠️ Chưa xử lý</span>';
+            statusClass = 'table-warning';
+        }
+
+        row.className = statusClass;
+        row.innerHTML = `
+            <td><strong>${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}</strong></td>
+            <td>${window.formatDate(invoice.invoiceInfo.date)}</td>
+            <td>${invoice.sellerInfo.name}</td>
+            <td><code>${invoice.sellerInfo.taxCode}</code></td>
+            <td style="text-align: right;">${window.formatCurrency(invoice.summary.calculatedTotal)}</td>
+            <td style="text-align: right;">${window.formatCurrency(invoice.summary.calculatedTax)}</td>
+            <td>${statusBadge}</td>
+            <td>
+                <div class="button-group-small">
+                    <button class="btn-sm btn-info" onclick="viewPurchaseInvoiceDetail('${invoice.originalFileId}')">👁️ Xem</button>
+                    ${(!invoice.status || !invoice.status.stockPosted) ? 
+                      `<button class="btn-sm btn-primary" onclick="createPurchaseReceipt('${invoice.originalFileId}')">📦 Tạo PN</button>` : 
+                      ''}
+                </div>
+            </td>
+        `;
+        
+        invoiceList.appendChild(row);
+    });
+    
+    console.log('✅ Đã tải danh sách hóa đơn');
+}
 // 🔥 THÊM HÀM CẬP NHẬT HIỂN THỊ CÔNG TY ĐANG CHỌN
 function updateCurrentCompanyDisplay() {
     const currentCompanyElem = document.getElementById('current-company');
@@ -917,7 +1149,9 @@ function updateCurrentCompanyDisplay() {
 // 🔥 ĐẢM BẢO CÁC HÀM NÀY ĐƯỢC EXPORT
 window.renderCompanyListFallback = renderCompanyListFallback;
 window.updateCurrentCompanyDisplay = updateCurrentCompanyDisplay;
-
+function printPurchaseInvoice(invoiceId) {
+    alert(`🖨️ In hóa đơn ${invoiceId}\n\nChức năng đang được phát triển...`);
+}
 
 // Exports toàn cục
 window.initMuaHangModule = initMuaHangModule;
@@ -1158,734 +1392,48 @@ function updateStockAfterInvoiceEdit(updatedInvoice) {
 }
 
 
-
 // =======================
-// HÀM HIỂN THỊ KẾT QUẢ LỌC
+// THÊM CSS CHO POPUP CHỈNH SỬA
 // =======================
-function renderFilteredPurchaseInvoices(invoices) {
-    const invoiceList = document.getElementById('purchase-invoice-list');
-    if (!invoiceList) return;
 
-    invoiceList.innerHTML = '';
-
-    if (invoices.length === 0) {
-        invoiceList.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px;">🔍 Không tìm thấy hóa đơn nào phù hợp</td></tr>';
-        return;
-    }
-
-    invoices.forEach((invoice, index) => {
-        const row = document.createElement('tr');
-        
-        // Xác định trạng thái
-        let statusBadge = '';
-        let statusClass = '';
-        
-        if (invoice.status && invoice.status.stockPosted) {
-            statusBadge = '<span class="badge badge-success">✅ Đã nhập kho</span>';
-            statusClass = 'table-success';
-        } else if (invoice.status && invoice.status.validation === 'error') {
-            statusBadge = '<span class="badge badge-danger">❌ Lỗi</span>';
-            statusClass = 'table-danger';
-        } else {
-            statusBadge = '<span class="badge badge-warning">⚠️ Chưa xử lý</span>';
-            statusClass = 'table-warning';
-        }
-
-        row.className = statusClass;
-        row.innerHTML = `
-            <td>${index + 1}</td>
-            <td><strong>${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}</strong></td>
-            <td>${window.formatDate(invoice.invoiceInfo.date)}</td>
-            <td>${invoice.sellerInfo.name}</td>
-            <td><code>${invoice.sellerInfo.taxCode}</code></td>
-            <td style="text-align: right;">${window.formatCurrency(invoice.summary.calculatedTotal)}</td>
-            <td style="text-align: right;">${window.formatCurrency(invoice.summary.calculatedTax)}</td>
-            <td>${statusBadge}</td>
-            <td>
-                <div class="button-group-small">
-                    <button class="btn-sm btn-info" onclick="viewPurchaseInvoiceDetail('${invoice.originalFileId}')">👁️ Xem</button>
-                    <button class="btn-sm btn-warning" onclick="editPurchaseInvoice('${invoice.originalFileId}')">✏️ Sửa</button>
-                    ${(!invoice.status || !invoice.status.stockPosted) ? 
-                      `<button class="btn-sm btn-primary" onclick="createPurchaseReceipt('${invoice.originalFileId}')">📦 Tạo PN</button>` : 
-                      ''}
-                </div>
-            </td>
-        `;
-        
-        invoiceList.appendChild(row);
-    });
-}
-
-
-
-// =======================
-// HÀM IN CHỨNG TỪ ĐẦY ĐỦ
-// =======================
-function printPurchaseInvoices() {
-    if (!window.currentCompany || !window.hkdData[window.currentCompany]) {
-        alert('👈 Vui lòng chọn công ty trước.');
-        return;
-    }
-
-    const hkd = window.hkdData[window.currentCompany];
-    const invoices = hkd.invoices || [];
-    
-    if (invoices.length === 0) {
-        alert('📭 Không có hóa đơn nào để in.');
-        return;
-    }
-
-    // Tạo nội dung in
-    let printContent = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>In Chứng Từ Mua Hàng</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-                .company-info { margin-bottom: 20px; }
-                .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                .table th { background-color: #f5f5f5; font-weight: bold; }
-                .text-right { text-align: right; }
-                .summary { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px; }
-                .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #666; }
-                @media print {
-                    body { margin: 0; }
-                    .no-print { display: none; }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>CHỨNG TỪ MUA HÀNG</h1>
-                <h3>${hkd.name || 'Công Ty'} - MST: ${window.currentCompany}</h3>
-                <p>Ngày in: ${new Date().toLocaleDateString('vi-VN')}</p>
-            </div>
-            
-            <div class="company-info">
-                <p><strong>Địa chỉ:</strong> ${hkd.address || 'Chưa cập nhật'}</p>
-                <p><strong>Điện thoại:</strong> ${hkd.phone || 'Chưa cập nhật'}</p>
-            </div>
-            
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>STT</th>
-                        <th>Số HĐ</th>
-                        <th>Ngày HĐ</th>
-                        <th>Nhà cung cấp</th>
-                        <th>MST NCC</th>
-                        <th class="text-right">Tổng tiền</th>
-                        <th class="text-right">Thuế GTGT</th>
-                        <th>Trạng thái</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    let totalAmount = 0;
-    let totalTax = 0;
-    
-    invoices.forEach((invoice, index) => {
-        const status = invoice.status && invoice.status.stockPosted ? 'Đã nhập kho' : 
-                     invoice.status && invoice.status.validation === 'error' ? 'Lỗi' : 'Chưa xử lý';
-        
-        printContent += `
-            <tr>
-                <td>${index + 1}</td>
-                <td>${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}</td>
-                <td>${window.formatDate(invoice.invoiceInfo.date)}</td>
-                <td>${invoice.sellerInfo.name}</td>
-                <td>${invoice.sellerInfo.taxCode}</td>
-                <td class="text-right">${window.formatCurrency(invoice.summary.calculatedTotal)}</td>
-                <td class="text-right">${window.formatCurrency(invoice.summary.calculatedTax)}</td>
-                <td>${status}</td>
-            </tr>
-        `;
-        
-        totalAmount += invoice.summary.calculatedTotal;
-        totalTax += invoice.summary.calculatedTax;
-    });
-
-    printContent += `
-                </tbody>
-            </table>
-            
-            <div class="summary">
-                <h4>TỔNG HỢP</h4>
-                <p><strong>Tổng số hóa đơn:</strong> ${invoices.length}</p>
-                <p><strong>Tổng tiền hàng:</strong> ${window.formatCurrency(totalAmount)} VND</p>
-                <p><strong>Tổng thuế GTGT:</strong> ${window.formatCurrency(totalTax)} VND</p>
-                <p><strong>Tổng thanh toán:</strong> ${window.formatCurrency(totalAmount + totalTax)} VND</p>
-            </div>
-            
-            <div class="footer">
-                <p>--- Hết ---</p>
-                <p>Người in: Hệ thống | Thời gian: ${new Date().toLocaleString('vi-VN')}</p>
-            </div>
-            
-            <div class="no-print" style="margin-top: 20px; text-align: center;">
-                <button onclick="window.print()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                    🖨️ In Ngay
-                </button>
-                <button onclick="window.close()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
-                    ❌ Đóng
-                </button>
-            </div>
-        </body>
-        </html>
-    `;
-
-    // Mở cửa sổ in
-    const printWindow = window.open('', '_blank', 'width=1000,height=800');
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-}
-
-// =======================
-// HÀM IN HÓA ĐƠN ĐẦU VÀO
-// =======================
-function printPurchaseInvoiceInput() {
-    alert('🖨️ Chức năng In Hóa Đơn Đầu Vào đang được phát triển...');
-    // TODO: Triển khai in từng hóa đơn cụ thể
-}
-
-// =======================
-// HÀM XUẤT EXCEL
-// =======================
-function exportPurchaseToExcel() {
-    if (!window.currentCompany || !window.hkdData[window.currentCompany]) {
-        alert('👈 Vui lòng chọn công ty trước.');
-        return;
-    }
-
-    const hkd = window.hkdData[window.currentCompany];
-    const invoices = hkd.invoices || [];
-    
-    if (invoices.length === 0) {
-        alert('📭 Không có dữ liệu để xuất Excel.');
-        return;
-    }
-
-    // Tạo nội dung CSV
-    let csvContent = 'STT,Số HĐ,Ngày HĐ,Nhà cung cấp,MST NCC,Tổng tiền,Thuế GTGT,Trạng thái\n';
-    
-    invoices.forEach((invoice, index) => {
-        const status = invoice.status && invoice.status.stockPosted ? 'Đã nhập kho' : 
-                     invoice.status && invoice.status.validation === 'error' ? 'Lỗi' : 'Chưa xử lý';
-        
-        csvContent += `${index + 1},`;
-        csvContent += `"${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}",`;
-        csvContent += `"${window.formatDate(invoice.invoiceInfo.date)}",`;
-        csvContent += `"${invoice.sellerInfo.name}",`;
-        csvContent += `"${invoice.sellerInfo.taxCode}",`;
-        csvContent += `${invoice.summary.calculatedTotal},`;
-        csvContent += `${invoice.summary.calculatedTax},`;
-        csvContent += `"${status}"\n`;
-    });
-
-    // Tạo file download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    
-    link.setAttribute('href', url);
-    link.setAttribute('download', `Danh_sach_hoa_don_mua_hang_${window.currentCompany}_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    alert(`✅ Đã xuất file Excel thành công! ${invoices.length} hóa đơn.`);
-}
-
-// =======================
-// =======================
-// XỬ LÝ TÌM KIẾM THỜI GIAN THỰC
-// =======================
-function initPurchaseSearch() {
-    const searchInput = document.getElementById('purchase-search-input');
-    const showErrorsCheckbox = document.getElementById('show-errors-first');
-    
-    if (searchInput) {
-        let searchTimeout;
-        
-        searchInput.addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                applyPurchaseSearch();
-            }, 300);
-        });
-        
-        showErrorsCheckbox.addEventListener('change', function() {
-            applyPurchaseSearch();
-        });
-        
-        console.log('✅ Đã khởi tạo tìm kiếm hóa đơn');
-    }
-}
-
-// =======================
-// HÀM ÁP DỤNG TÌM KIẾM
-// =======================
-function applyPurchaseSearch() {
-    if (!window.currentCompany || !window.hkdData[window.currentCompany]) {
-        return;
-    }
-
-    const searchTerm = document.getElementById('purchase-search-input')?.value.toLowerCase() || '';
-    const showErrorsFirst = document.getElementById('show-errors-first')?.checked || false;
-
-    const hkd = window.hkdData[window.currentCompany];
-    let invoices = hkd.invoices || [];
-
-    // Lọc theo từ khóa tìm kiếm
-    if (searchTerm) {
-        invoices = invoices.filter(invoice => {
-            const supplierName = invoice.sellerInfo.name.toLowerCase();
-            const taxCode = invoice.sellerInfo.taxCode.toLowerCase();
-            const invoiceNumber = `${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}`.toLowerCase();
-            
-            // Tìm trong tên NCC, MST, số HĐ
-            return supplierName.includes(searchTerm) || 
-                   taxCode.includes(searchTerm) || 
-                   invoiceNumber.includes(searchTerm);
-        });
-    }
-
-    // Sắp xếp: hóa đơn lỗi lên đầu nếu được chọn
-    if (showErrorsFirst) {
-        invoices.sort((a, b) => {
-            const aHasError = a.status && a.status.validation === 'error';
-            const bHasError = b.status && b.status.validation === 'error';
-            
-            if (aHasError && !bHasError) return -1;
-            if (!aHasError && bHasError) return 1;
-            return new Date(b.invoiceInfo.date) - new Date(a.invoiceInfo.date);
-        });
-    } else {
-        // Sắp xếp theo ngày (mới nhất trước)
-        invoices.sort((a, b) => new Date(b.invoiceInfo.date) - new Date(a.invoiceInfo.date));
-    }
-
-    // Hiển thị kết quả
-    renderFilteredPurchaseInvoices(invoices);
-    
-    // Hiển thị thống kê
-    const errorCount = invoices.filter(inv => inv.status && inv.status.validation === 'error').length;
-    const totalCount = invoices.length;
-    
-    updatePurchaseSearchStats(totalCount, errorCount, searchTerm);
-}
-
-// =======================
-// CẬP NHẬT THỐNG KÊ TÌM KIẾM
-// =======================
-function updatePurchaseSearchStats(totalCount, errorCount, searchTerm) {
-    let statsElement = document.getElementById('purchase-search-stats');
-    
-    if (!statsElement) {
-        statsElement = document.createElement('div');
-        statsElement.id = 'purchase-search-stats';
-        statsElement.className = 'search-stats';
-        
-        const cardHeader = document.querySelector('#purchase-invoice-list-section .card-header');
-        if (cardHeader) {
-            cardHeader.insertAdjacentElement('afterend', statsElement);
-        }
-    }
-    
-    let statsText = `<strong>📊 Tìm thấy:</strong> ${totalCount} hóa đơn`;
-    if (errorCount > 0) {
-        statsText += ` <span class="text-danger">(${errorCount} lỗi)</span>`;
-    }
-    if (searchTerm) {
-        statsText += ` <span class="text-info">- Từ khóa: "${searchTerm}"</span>`;
-    }
-    if (totalCount === 0 && searchTerm) {
-        statsText += ` <span class="text-warning">- Không tìm thấy kết quả</span>`;
-    }
-    
-    statsElement.innerHTML = statsText;
-}
-
-// =======================
-// CẬP NHẬT HÀM LOADPURCHASEINVOICES
-// =======================
-function loadPurchaseInvoices() {
-    const invoiceList = document.getElementById('purchase-invoice-list');
-    if (!invoiceList) {
-        console.error('❌ Không tìm thấy danh sách hóa đơn');
-        return;
-    }
-
-    if (!window.currentCompany || !window.hkdData[window.currentCompany]) {
-        invoiceList.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px;">👈 Vui lòng chọn công ty</td></tr>';
-        return;
-    }
-
-    const hkd = window.hkdData[window.currentCompany];
-    const invoices = hkd.invoices || [];
-
-    // Hiển thị tất cả hóa đơn (không lọc)
-    renderFilteredPurchaseInvoices(invoices);
-    
-    // Reset search
-    const searchInput = document.getElementById('purchase-search-input');
-    if (searchInput) {
-        searchInput.value = '';
-    }
-    
-    // Update stats
-    const errorCount = invoices.filter(inv => inv.status && inv.status.validation === 'error').length;
-    updatePurchaseSearchStats(invoices.length, errorCount, '');
-}
-
-
-
-// =======================
-// THÊM CSS CHO TÌM KIẾM
-// =======================
-function addSearchStyles() {
+function addEditModalStyles() {
     const styles = `
         <style>
-        .search-stats {
-            background: #f8f9fa;
-            padding: 8px 15px;
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+        }
+        
+        .form-control {
+            border: 1px solid #ddd;
             border-radius: 4px;
-            margin: 10px 0;
-            border-left: 4px solid #007bff;
-            font-size: 14px;
+            padding: 8px 12px;
+            width: 100%;
         }
         
-        .text-info { color: #17a2b8 !important; }
-        .text-success { color: #28a745 !important; }
-        .text-danger { color: #dc3545 !important; }
-        .text-warning { color: #ffc107 !important; }
-        </style>
-    `;
-    
-    document.head.insertAdjacentHTML('beforeend', styles);
-}
-
-// Gọi hàm thêm CSS
-addSearchStyles();
-
-// =======================
-// CẬP NHẬT HÀM INITMUAHANGMODULE - THÊM BỘ LỌC
-// =======================
-function initMuaHangModule() {
-    console.log('🔄 Đang khởi tạo module Mua Hàng...');
-    
-    // Kiểm tra hàm modal
-    checkModalFunction();
-    
-    
-    // Tạo bộ lọc
-    createPurchaseInvoiceFilters();
-    
-    // Lắng nghe sự kiện xử lý hóa đơn mua hàng
-    const processButton = document.getElementById('process-purchase-invoices');
-    if (processButton) {
-        processButton.addEventListener('click', processPurchaseInvoices);
-        console.log('✅ Đã gắn sự kiện cho nút xử lý hóa đơn');
-    } else {
-        console.error('❌ Không tìm thấy nút process-purchase-invoices');
-    }
-
-    // Tải danh sách hóa đơn mua hàng
-    loadPurchaseInvoices();
-    
-    // Tải công nợ phải trả
-    loadPayableList();
-    
-    console.log('✅ Module Mua Hàng đã khởi tạo xong');
-}
-
-// =======================
-// HÀM TẠO BỘ LỌC VỚI LỌC THỜI GIAN THỰC
-// =======================
-function createPurchaseInvoiceFilters() {
-    // Kiểm tra xem đã có bộ lọc chưa
-    const existingFilter = document.getElementById('purchase-invoice-filters');
-    if (existingFilter) {
-        existingFilter.remove();
-    }
-
-    const filterHtml = `
-        <div id="purchase-invoice-filters">
-            <div class="card">
-                <div class="card-header">🔍 Bộ Lọc Hóa Đơn - Tìm Kiếm Thời Gian Thực</div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label><strong>🏢 Tên NCC:</strong></label>
-                                <input type="text" class="form-control" id="filter-supplier-name" placeholder="Nhập tên nhà cung cấp..." oninput="applyPurchaseFilters()">
-                            </div>
-                        </div>
-                
-                        <div class="col-md-2">
-                            <div class="form-group">
-                                <label><strong>📅 Từ ngày:</strong></label>
-                                <input type="date" class="form-control" id="filter-from-date" onchange="applyPurchaseFilters()">
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="form-group">
-                                <label><strong>📅 Đến ngày:</strong></label>
-                                <input type="date" class="form-control" id="filter-to-date" onchange="applyPurchaseFilters()">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="filter-show-errors" checked onchange="applyPurchaseFilters()">
-                                <label class="form-check-label" for="filter-show-errors">
-                                    <strong>⚠️ Hiển thị hóa đơn lỗi trên cùng</strong>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col-md-4 text-right">
-                            <button class="btn btn-secondary" onclick="resetPurchaseFilters()">
-                                🔄 Xóa Lọc
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">🖨️ Công Cụ In & Xuất</div>
-                <div class="card-body">
-                    <div class="button-group">
-                        <button class="btn btn-info" onclick="printPurchaseInvoices()">
-                            🧾 In Chứng Từ
-                        </button>
-                        <button class="btn btn-warning" onclick="printPurchaseInvoiceInput()">
-                            📄 In Hóa Đơn Đầu Vào
-                        </button>
-                        <button class="btn btn-success" onclick="printPurchaseReceipts()">
-                            📦 In Phiếu Nhập Kho
-                        </button>
-                        <button class="btn btn-primary" onclick="printPurchaseLedger()">
-                            📒 In Sổ Chi Tiết Mua Hàng
-                        </button>
-                        <button class="btn btn-dark" onclick="exportPurchaseToExcel()">
-                            📊 Xuất Excel
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    const invoiceListSection = document.getElementById('purchase-invoice-list-section');
-    if (invoiceListSection) {
-        invoiceListSection.insertAdjacentHTML('beforebegin', filterHtml);
-        console.log('✅ Đã tạo bộ lọc hóa đơn với tìm kiếm thời gian thực');
-    } else {
-        console.error('❌ Không tìm thấy section danh sách hóa đơn');
-    }
-}
-
-// =======================
-// HÀM ÁP DỤNG BỘ LỌC VỚI DEBOUNCE
-// =======================
-let filterTimeout;
-function applyPurchaseFilters() {
-    // Debounce để tránh gọi hàm quá nhiều khi đang nhập
-    clearTimeout(filterTimeout);
-    filterTimeout = setTimeout(() => {
-        _applyPurchaseFilters();
-    }, 300); // Chờ 300ms sau khi ngừng nhập
-}
-
-function _applyPurchaseFilters() {
-    if (!window.currentCompany || !window.hkdData[window.currentCompany]) {
-        return;
-    }
-
-    const fromDate = document.getElementById('filter-from-date')?.value || '';
-    const toDate = document.getElementById('filter-to-date')?.value || '';
-    const supplierName = document.getElementById('filter-supplier-name')?.value.toLowerCase() || '';
-    const taxCode = document.getElementById('filter-tax-code')?.value || '';
-    const invoiceNumber = document.getElementById('filter-invoice-number')?.value.toLowerCase() || '';
-    const showErrorsFirst = document.getElementById('filter-show-errors')?.checked || false;
-
-    const hkd = window.hkdData[window.currentCompany];
-    let invoices = hkd.invoices || [];
-
-    // Lọc theo các điều kiện
-    invoices = invoices.filter(invoice => {
-        const invoiceDate = new Date(invoice.invoiceInfo.date);
-        const from = fromDate ? new Date(fromDate) : null;
-        const to = toDate ? new Date(toDate) : null;
-        
-        // Lọc theo ngày
-        if (from && invoiceDate < from) return false;
-        if (to && invoiceDate > to) return false;
-        
-        // Lọc theo tên NCC
-        if (supplierName && !invoice.sellerInfo.name.toLowerCase().includes(supplierName)) {
-            return false;
-        }
-        
-        // Lọc theo MST
-        if (taxCode && !invoice.sellerInfo.taxCode.includes(taxCode)) {
-            return false;
-        }
-        
-        // Lọc theo số HĐ
-        const fullInvoiceNumber = `${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}`.toLowerCase();
-        if (invoiceNumber && !fullInvoiceNumber.includes(invoiceNumber)) {
-            return false;
-        }
-        
-        return true;
-    });
-
-    // Sắp xếp: hóa đơn lỗi lên đầu nếu được chọn
-    if (showErrorsFirst) {
-        invoices.sort((a, b) => {
-            const aHasError = a.status && a.status.validation === 'error';
-            const bHasError = b.status && b.status.validation === 'error';
-            
-            if (aHasError && !bHasError) return -1;
-            if (!aHasError && bHasError) return 1;
-            return new Date(b.invoiceInfo.date) - new Date(a.invoiceInfo.date);
-        });
-    } else {
-        // Sắp xếp theo ngày (mới nhất trước)
-        invoices.sort((a, b) => new Date(b.invoiceInfo.date) - new Date(a.invoiceInfo.date));
-    }
-
-    // Hiển thị kết quả lọc
-    renderFilteredPurchaseInvoices(invoices);
-    
-    // Hiển thị thống kê
-    const errorCount = invoices.filter(inv => inv.status && inv.status.validation === 'error').length;
-    const totalCount = invoices.length;
-    
-    // Cập nhật thống kê lọc
-    updateFilterStats(totalCount, errorCount);
-}
-
-// =======================
-// HÀM CẬP NHẬT THỐNG KÊ LỌC
-// =======================
-function updateFilterStats(totalCount, errorCount) {
-    let statsElement = document.getElementById('filter-stats');
-    
-    if (!statsElement) {
-        statsElement = document.createElement('div');
-        statsElement.id = 'filter-stats';
-        statsElement.className = 'filter-stats';
-        
-        const filterCard = document.querySelector('#purchase-invoice-filters .card');
-        if (filterCard) {
-            filterCard.querySelector('.card-body').insertAdjacentElement('beforeend', statsElement);
-        }
-    }
-    
-    statsElement.innerHTML = `
-        <strong>📊 Kết quả lọc:</strong> 
-        <span class="text-success">${totalCount} hóa đơn</span> | 
-        <span class="text-danger">${errorCount} lỗi</span>
-        ${totalCount === 0 ? '<span class="text-warning"> - Không tìm thấy kết quả</span>' : ''}
-    `;
-}
-
-// =======================
-// HÀM RESET BỘ LỌC
-// =======================
-function resetPurchaseFilters() {
-    const fromDate = document.getElementById('filter-from-date');
-    const toDate = document.getElementById('filter-to-date');
-    const supplierName = document.getElementById('filter-supplier-name');
-    const taxCode = document.getElementById('filter-tax-code');
-    const invoiceNumber = document.getElementById('filter-invoice-number');
-    const showErrors = document.getElementById('filter-show-errors');
-    
-    if (fromDate) fromDate.value = '';
-    if (toDate) toDate.value = '';
-    if (supplierName) supplierName.value = '';
-    if (taxCode) taxCode.value = '';
-    if (invoiceNumber) invoiceNumber.value = '';
-    if (showErrors) showErrors.checked = true;
-    
-    // Xóa thống kê
-    const statsElement = document.getElementById('filter-stats');
-    if (statsElement) {
-        statsElement.remove();
-    }
-    
-    // Tải lại danh sách gốc
-    loadPurchaseInvoices();
-}
-
-// =======================
-// THÊM CSS CHO BỘ LỌC THỜI GIAN THỰC
-// =======================
-function addFilterStyles() {
-    const styles = `
-        <style>
-        .button-group {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        
-        .button-group .btn {
-            margin: 2px;
-        }
-        
-        .button-group-small {
-            display: flex;
-            gap: 5px;
-        }
-        
-        .filter-stats {
-            background: #e7f3ff;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-            border-left: 4px solid #007bff;
-            font-size: 14px;
-        }
-        
-        .badge {
+        .form-control-sm {
             padding: 4px 8px;
-            border-radius: 4px;
             font-size: 12px;
         }
         
-        .badge-success { background: #28a745; color: white; }
-        .badge-danger { background: #dc3545; color: white; }
-        .badge-warning { background: #ffc107; color: #212529; }
+        .button-group-small .btn-sm {
+            margin: 2px;
+            padding: 4px 8px;
+            font-size: 12px;
+        }
         
-        .table-success { background: #d4edda !important; }
-        .table-danger { background: #f8d7da !important; }
-        .table-warning { background: #fff3cd !important; }
+        .table input.form-control-sm {
+            border: 1px solid #ccc;
+        }
         
-        .text-success { color: #28a745 !important; }
-        .text-danger { color: #dc3545 !important; }
-        .text-warning { color: #ffc107 !important; }
-        
-        /* Responsive cho bộ lọc */
-        @media (max-width: 768px) {
-            .button-group {
-                flex-direction: column;
-            }
-            
-            .button-group .btn {
-                width: 100%;
-                margin: 5px 0;
-            }
+        .table input.form-control-sm:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
         }
         </style>
     `;
@@ -1893,13 +1441,6 @@ function addFilterStyles() {
     document.head.insertAdjacentHTML('beforeend', styles);
 }
 
-
-// Export các hàm mới
-window.applyPurchaseFilters = applyPurchaseFilters;
-window.resetPurchaseFilters = resetPurchaseFilters;
-window.printPurchaseInvoices = printPurchaseInvoices;
-window.printPurchaseInvoiceInput = printPurchaseInvoiceInput;
-window.exportPurchaseToExcel = exportPurchaseToExcel;
 
 
 // Export các hàm mới

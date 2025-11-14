@@ -337,23 +337,7 @@ function saveData() {
 // =======================================================
 // QUẢN LÝ CÔNG TY VÀ GIAO DIỆN CHÍNH
 // =======================================================
-// Toggle sidebar trên mobile
-function toggleSidebar() {
-    const sidebar = document.querySelector('.sidebar');
-    const overlay = document.querySelector('.sidebar-overlay');
-    sidebar.classList.toggle('mobile-open');
-    overlay.classList.toggle('mobile-open');
-}
 
-// Đóng sidebar khi click overlay
-function closeSidebar() {
-    const sidebar = document.querySelector('.sidebar');
-    const overlay = document.querySelector('.sidebar-overlay');
-    sidebar.classList.remove('mobile-open');
-    overlay.classList.remove('mobile-open');
-}
-
-// Gắn sự kiện
 function renderCompanyList() {
     const companyList = document.getElementById('company-list');
     if (!companyList) {
@@ -473,21 +457,21 @@ function showTab(tabName) {
 }
 
 // =======================
-// HÀM CẬP NHẬT HEADER VỚI TAB HIỆN TẠI
+// HÀM CẬP NHẬT HEADER VỚI TAB HIỆN TẠI - SỬA TÊN TAB
 // =======================
 function updateHeaderWithCurrentTab(tabName) {
     const currentCompanyElem = document.getElementById('current-company');
     if (!currentCompanyElem) return;
 
     const tabNames = {
-        'so-du-dau-ky': 'Số Dư Đầu Kỳ',
+        'xu-ly-hoa-don-loi': 'Xử Lý Hóa Đơn',
         'mua-hang': 'Mua Hàng',
         'kho-hang': 'Kho Hàng',
         'ban-hang': 'Bán Hàng',
         'tien-cong-no': 'Tiền & Công Nợ',
         'thue-bao-cao': 'Thuế & Báo Cáo',
         'so-sach': 'Sổ Sách',
-        'xu-ly-hoa-don-loi': 'Xử Lý Hóa Đơn Lỗi'
+        'so-du-dau-ky': 'Số Dư Đầu Kỳ'
     };
 
     const currentTabName = tabNames[tabName] || tabName;
