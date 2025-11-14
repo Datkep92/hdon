@@ -1,6 +1,7 @@
 // =======================
 // Cập nhật hàm thống kê file
 // =======================
+/*
 function updateFileStats(total, success, error, duplicate, stockPosted = 0) {
     document.getElementById('total-files').textContent = total;
     document.getElementById('success-count').textContent = success;
@@ -16,7 +17,7 @@ function updateFileStats(total, success, error, duplicate, stockPosted = 0) {
     document.getElementById('file-stats').classList.remove('hidden');
 }
 
-
+*/
 // =======================
 // Hàm tạo options MSP
 // =======================

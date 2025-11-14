@@ -44,10 +44,270 @@ window.accountingRound = accountingRound;
 /**
  * Hiển thị Modal tùy chỉnh
  */
+// =======================
+// THÊM HÀM CLOSE MODAL VÀO GLOBAL SCOPE
+// =======================
+function closeModal() {
+    const modal = document.getElementById('custom-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+window.closeModal = closeModal;
+
+// =======================
+// SỬA HÀM CHECKMODALFUNCTION ĐỂ ĐẢM BẢO CÓ CLOSEMODAL
+// =======================
+function checkModalFunction() {
+    console.log('🔍 Kiểm tra hàm modal:');
+    console.log('- showModal:', typeof window.showModal);
+    console.log('- closeModal:', typeof window.closeModal);
+    
+    // Đảm bảo showModal tồn tại
+    if (typeof window.showModal !== 'function') {
+        console.error('❌ Hàm showModal không tồn tại, đang thêm fallback...');
+        
+        // Fallback modal đơn giản
+        window.showModal = function(title, content, size = '') {
+            const modalHtml = `
+                <div id="custom-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: white; padding: 20px; border-radius: 8px; max-width: 90%; max-height: 90%; overflow: auto; width: ${size === 'modal-xl' ? '1200px' : '800px'}">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="margin: 0; flex: 1;">${title}</h3>
+                            <button onclick="closeModal()" style="background: none; border: none; font-size: 20px; cursor: pointer;">❌</button>
+                        </div>
+                        <div>${content}</div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+        };
+    }
+    
+    // Đảm bảo closeModal tồn tại
+    if (typeof window.closeModal !== 'function') {
+        console.error('❌ Hàm closeModal không tồn tại, đang thêm...');
+        window.closeModal = closeModal;
+    }
+    
+    console.log('✅ Đã kiểm tra modal functions');
+}
 function showModal(title, content) {
-    // ... (giữ nguyên hàm showModal từ file app.js cũ)
+    const existingModal = document.getElementById('custom-modal');
+    if (existingModal) document.body.removeChild(existingModal);
+
+    const modal = document.createElement('div');
+    modal.id = 'custom-modal';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.backgroundColor = 'rgba(0,0,0,0.6)';
+    modal.style.display = 'flex';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+    modal.style.zIndex = '1000';
+
+    // Xác định kích thước modal dựa trên tiêu đề
+    const isEditModal = title.includes('Chỉnh Sửa Hóa Đơn') || title.includes('Chi Tiết Hóa Đơn');
+    
+    const modalContent = document.createElement('div');
+    modalContent.style.backgroundColor = 'white';
+    modalContent.style.padding = '25px';
+    modalContent.style.borderRadius = '10px';
+    modalContent.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
+    
+    if (isEditModal) {
+        // Modal lớn 90% cho chỉnh sửa hóa đơn
+        modalContent.style.width = '95%';
+        modalContent.style.height = '95%';
+        modalContent.style.maxWidth = '95%';
+        modalContent.style.maxHeight = '95%';
+        modalContent.style.overflow = 'auto';
+    } else {
+        // Modal thường cho các popup khác
+        modalContent.style.maxWidth = '90%';
+        modalContent.style.maxHeight = '90%';
+        modalContent.style.overflow = 'auto';
+        modalContent.style.width = '700px';
+    }
+
+    modalContent.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid var(--primary); padding-bottom: 15px;">
+            <h3 style="margin: 0; color: var(--primary); font-size: 24px; font-weight: bold;">${title}</h3>
+            <button id="close-modal" style="background: var(--danger); color: white; border: none; font-size: 20px; cursor: pointer; padding: 8px 15px; border-radius: 5px; transition: background 0.3s;">&times;</button>
+        </div>
+        <div class="modal-body" style="${isEditModal ? 'max-height: calc(95vh - 150px); overflow-y: auto; padding: 10px;' : ''}">${content}</div>
+    `;
+
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+
+    document.getElementById('close-modal').addEventListener('click', function() {
+        document.body.removeChild(modal);
+    });
+
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            document.body.removeChild(modal);
+        }
+    });
 }
 
+window.showModal = showModal;
+// =======================
+// SỬA HÀM SAVEINVOICECHANGES - THAY THẾ WINDOW.CLOSEMODAL() BẰNG CLOSEMODAL()
+// =======================
+function saveInvoiceChanges(invoiceId) {
+    if (!window.currentCompany || !window.hkdData) {
+        alert('❌ Chưa chọn công ty hoặc dữ liệu không tồn tại');
+        return;
+    }
+    
+    const hkd = window.hkdData[window.currentCompany];
+    const invoice = hkd.invoices.find(inv => inv.originalFileId === invoiceId);
+    
+    if (!invoice) {
+        alert('❌ Không tìm thấy hóa đơn');
+        return;
+    }
+
+    // Cập nhật thông tin cơ bản
+    const invoiceNumberInput = document.getElementById('edit-invoice-number');
+    const invoiceDateInput = document.getElementById('edit-invoice-date');
+    const supplierNameInput = document.getElementById('edit-supplier-name');
+    const supplierTaxCodeInput = document.getElementById('edit-supplier-taxcode');
+    
+    if (invoiceNumberInput) {
+        const invoiceNumber = invoiceNumberInput.value;
+        const numberParts = invoiceNumber.split('/');
+        if (numberParts.length === 2) {
+            invoice.invoiceInfo.symbol = numberParts[0];
+            invoice.invoiceInfo.number = numberParts[1];
+        }
+    }
+    
+    if (invoiceDateInput) {
+        invoice.invoiceInfo.date = invoiceDateInput.value;
+    }
+    
+    if (supplierNameInput) {
+        invoice.sellerInfo.name = supplierNameInput.value;
+    }
+    
+    if (supplierTaxCodeInput) {
+        invoice.sellerInfo.taxCode = supplierTaxCodeInput.value;
+    }
+    
+    // Cập nhật tổng hợp
+    const totalAmountInput = document.getElementById('edit-total-amount');
+    const taxAmountInput = document.getElementById('edit-tax-amount');
+    const totalPaymentInput = document.getElementById('edit-total-payment');
+    
+    if (totalAmountInput) {
+        invoice.summary.calculatedAmountAfterDiscount = parseFloat(totalAmountInput.value) || 0;
+    }
+    
+    if (taxAmountInput) {
+        invoice.summary.calculatedTax = parseFloat(taxAmountInput.value) || 0;
+    }
+    
+    if (totalPaymentInput) {
+        invoice.summary.calculatedTotal = parseFloat(totalPaymentInput.value) || 0;
+    }
+
+    // Cập nhật tồn kho nếu hóa đơn đã được nhập kho
+    if (invoice.status && invoice.status.stockPosted) {
+        updateStockAfterInvoiceEdit(invoice);
+    }
+
+    // Lưu dữ liệu
+    if (typeof window.saveData === 'function') {
+        window.saveData();
+    }
+
+    // SỬA Ở ĐÂY: Thay window.closeModal() bằng closeModal()
+    closeModal();
+    
+    // Cập nhật giao diện
+    loadPurchaseInvoices();
+    if (typeof window.renderStock === 'function') window.renderStock();
+    
+    alert('✅ Đã lưu thay đổi thành công!');
+    console.log('💾 Đã lưu thay đổi hóa đơn:', invoiceId);
+}
+
+// =======================
+// SỬA CÁC HÀM KHÁC CŨNG GỌI CLOSEMODAL
+// =======================
+function removeProduct(invoiceId, productIndex) {
+    if (!confirm('❌ Bạn có chắc muốn xóa sản phẩm này?')) {
+        return;
+    }
+    
+    if (!window.currentCompany || !window.hkdData) {
+        console.error('❌ Chưa chọn công ty hoặc dữ liệu không tồn tại');
+        return;
+    }
+    
+    const hkd = window.hkdData[window.currentCompany];
+    const invoice = hkd.invoices.find(inv => inv.originalFileId === invoiceId);
+    
+    if (invoice && invoice.products[productIndex]) {
+        invoice.products.splice(productIndex, 1);
+        
+        // Cập nhật lại STT
+        invoice.products.forEach((product, index) => {
+            product.stt = index + 1;
+        });
+        
+        // SỬA Ở ĐÂY: Thay window.closeModal() bằng closeModal()
+        closeModal();
+        setTimeout(() => {
+            editPurchaseInvoice(invoiceId);
+        }, 100);
+        
+        console.log(`✅ Đã xóa sản phẩm ${productIndex}`);
+    }
+}
+
+function addNewProduct(invoiceId) {
+    if (!window.currentCompany || !window.hkdData) {
+        console.error('❌ Chưa chọn công ty hoặc dữ liệu không tồn tại');
+        return;
+    }
+    
+    const hkd = window.hkdData[window.currentCompany];
+    const invoice = hkd.invoices.find(inv => inv.originalFileId === invoiceId);
+    
+    if (invoice) {
+        const newProduct = {
+            stt: invoice.products.length + 1,
+            msp: 'NEW',
+            name: 'Sản phẩm mới',
+            unit: 'cái',
+            quantity: 1,
+            price: 0,
+            amount: 0
+        };
+        
+        invoice.products.push(newProduct);
+        
+        // SỬA Ở ĐÂY: Thay window.closeModal() bằng closeModal()
+        closeModal();
+        setTimeout(() => {
+            editPurchaseInvoice(invoiceId);
+        }, 100);
+        
+        console.log('✅ Đã thêm sản phẩm mới');
+    }
+}
+
+// =======================
+// THÊM HÀM CLOSE MODAL VÀO EXPORT
+// =======================
+window.closeModal = closeModal;
 // =======================================================
 // QUẢN LÝ DỮ LIỆU (localStorage)
 // =======================================================
@@ -223,10 +483,12 @@ function setupTabSwitching() {
 }
 
 // =======================================================
-// KHỞI TẠO ỨNG DỤNG
+// KHỞI TẠO ỨNG DỤNG - SỬA LỖI
 // =======================================================
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔄 Đang khởi động ứng dụng...');
+    
     // 1. Tải dữ liệu từ LocalStorage
     loadData();
     
@@ -248,34 +510,231 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 5. Gắn sự kiện cho nút "Xóa hết dữ liệu"
-    const clearDataButton = document.getElementById('clear-all-data');
-    if (clearDataButton) {
-        clearDataButton.addEventListener('click', function() {
-            showModal('Xác Nhận Xóa Dữ Liệu', `
-                <p><strong>CẢNH BÁO:</strong> Thao tác này sẽ xóa <strong>HẾT TẤT CẢ</strong> dữ liệu đã lưu trong trình duyệt.</p>
-                <p>Bạn có chắc chắn muốn tiếp tục không?</p>
-                <div style="text-align: right; margin-top: 20px;">
-                    <button id="confirm-clear" class="btn-danger" style="margin-right: 10px;">Xóa Ngay</button>
-                    <button id="cancel-clear" class="btn-secondary">Hủy</button>
-                </div>
-            `);
+    // 5. Gắn sự kiện cho nút "Xóa hết dữ liệu" - SỬA LỖI Ở ĐÂY
+    setTimeout(() => {
+        const clearDataButton = document.getElementById('clear-all-data');
+        console.log('🔍 Đang tìm nút clear-all-data:', clearDataButton);
+        
+        if (clearDataButton) {
+            clearDataButton.addEventListener('click', function() {
+                console.log('🎯 Nút xóa dữ liệu được click');
+                showClearDataConfirmation();
+            });
+            console.log('✅ Đã gắn sự kiện cho nút xóa dữ liệu');
+        } else {
+            console.warn('⚠️ Không tìm thấy nút "Xóa hết dữ liệu" - có thể chưa render kịp');
             
+            // Thử tìm lại sau 1 giây
+            setTimeout(() => {
+                const retryButton = document.getElementById('clear-all-data');
+                if (retryButton) {
+                    retryButton.addEventListener('click', showClearDataConfirmation);
+                    console.log('✅ Đã gắn sự kiện sau retry');
+                } else {
+                    console.error('❌ Vẫn không tìm thấy nút clear-all-data sau retry');
+                }
+            }, 1000);
+        }
+    }, 100); // Delay nhẹ để DOM render xong
+
+    console.log('✅ Ứng dụng đã khởi động hoàn tất.');
+});
+
+// =======================
+// HÀM HIỂN THỊ XÁC NHẬN XÓA DỮ LIỆU
+// =======================
+function showClearDataConfirmation() {
+    const companyCount = Object.keys(window.hkdData).length;
+    let invoiceCount = 0;
+    let stockCount = 0;
+    
+    // Đếm tổng số hóa đơn và sản phẩm tồn kho
+    Object.values(window.hkdData).forEach(company => {
+        invoiceCount += company.invoices ? company.invoices.length : 0;
+        stockCount += company.tonkhoMain ? company.tonkhoMain.length : 0;
+    });
+
+    const confirmMessage = `
+        <div class="clear-data-warning">
+            <div class="warning-header">
+                <span style="color: #dc3545; font-size: 24px;">⚠️</span>
+                <h4 style="color: #dc3545; margin: 0;">CẢNH BÁO: XÓA TOÀN BỘ DỮ LIỆU</h4>
+            </div>
+            
+            <div class="data-stats" style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                <p><strong>Dữ liệu sẽ bị xóa:</strong></p>
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li>🏢 Số công ty: <strong>${companyCount}</strong></li>
+                    <li>🧾 Số hóa đơn: <strong>${invoiceCount}</strong></li>
+                    <li>📦 Sản phẩm tồn kho: <strong>${stockCount}</strong></li>
+                    <li>💰 Dữ liệu kế toán: <strong>Tất cả</strong></li>
+                </ul>
+            </div>
+            
+            <p style="color: #856404;"><strong>Thao tác này KHÔNG THỂ HOÀN TÁC!</strong></p>
+            <p>Tất cả dữ liệu sẽ bị xóa vĩnh viễn khỏi trình duyệt.</p>
+            
+            <div class="confirmation-check" style="margin: 15px 0;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" id="confirm-delete-checkbox" style="margin-right: 8px;">
+                    <span>Tôi hiểu và chắc chắn muốn xóa toàn bộ dữ liệu</span>
+                </label>
+            </div>
+        </div>
+        
+        <div style="text-align: right; margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px;">
+            <button id="confirm-clear" class="btn-danger" style="margin-right: 10px;" disabled>
+                🗑️ XÓA NGAY
+            </button>
+            <button id="cancel-clear" class="btn-secondary">❌ Hủy</button>
+        </div>
+    `;
+    
+    // Sử dụng hàm showModal có sẵn hoặc tạo mới
+    if (typeof window.showModal === 'function') {
+        window.showModal('XÁC NHẬN XÓA DỮ LIỆU', confirmMessage);
+    } else {
+        // Fallback nếu hàm showModal không tồn tại
+        const modal = document.createElement('div');
+        modal.id = 'custom-modal';
+        modal.style.display = 'block';
+        modal.innerHTML = `
+            <div class="modal-overlay">
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-header">
+                        <h3>XÁC NHẬN XÓA DỮ LIỆU</h3>
+                        <span class="close" onclick="document.getElementById('custom-modal').remove()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        ${confirmMessage}
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    // Kích hoạt nút xóa khi tích checkbox
+    setTimeout(() => {
+        const checkbox = document.getElementById('confirm-delete-checkbox');
+        const confirmButton = document.getElementById('confirm-clear');
+        
+        if (checkbox && confirmButton) {
+            checkbox.addEventListener('change', function() {
+                confirmButton.disabled = !this.checked;
+            });
+            
+            // Xử lý xác nhận xóa
             document.getElementById('confirm-clear').addEventListener('click', function() {
-                localStorage.removeItem(STORAGE_KEY);
-                window.hkdData = {};
-                window.currentCompany = null;
-                const modal = document.getElementById('custom-modal');
-                if (modal) modal.remove();
-                window.location.reload();
+                clearAllData();
             });
 
+            // Xử lý hủy
             document.getElementById('cancel-clear').addEventListener('click', function() {
                 const modal = document.getElementById('custom-modal');
                 if (modal) modal.remove();
             });
+        }
+    }, 100);
+}
+
+// =======================
+// HÀM XÓA TOÀN BỘ DỮ LIỆU - DÙNG localStorage.clear()
+// =======================
+function clearAllData() {
+    try {
+        console.log('🗑️ Đang xóa toàn bộ dữ liệu...');
+        
+        // 1. DEBUG: Kiểm tra dữ liệu trước khi xóa
+        console.log('🔍 Dữ liệu trước khi xóa:');
+        console.log('- window.hkdData:', window.hkdData);
+        console.log('- Số công ty:', Object.keys(window.hkdData).length);
+        console.log('- Toàn bộ localStorage:', localStorage);
+        
+        // 2. XÓA TOÀN BỘ LOCALSTORAGE - CÁCH TRIỆT ĐỂ
+        localStorage.clear();
+        console.log('✅ Đã xóa toàn bộ dữ liệu localStorage');
+        
+        // 3. Xóa dữ liệu trong memory
+        window.hkdData = {};
+        window.currentCompany = null;
+        console.log('✅ Đã xóa dữ liệu memory');
+        
+        // 4. Đóng modal
+        const modal = document.getElementById('custom-modal');
+        if (modal) modal.remove();
+        
+        // 5. Hiển thị thông báo và reload
+        setTimeout(() => {
+            // Kiểm tra lại
+            console.log('🔍 Kiểm tra sau khi xóa:');
+            console.log('- localStorage:', localStorage);
+            console.log('- window.hkdData:', window.hkdData);
+            
+            alert('✅ Đã xóa toàn bộ dữ liệu thành công! Ứng dụng sẽ reload...');
+            
+            // Reload trang
+            window.location.reload();
+        }, 300);
+        
+    } catch (error) {
+        console.error('❌ Lỗi khi xóa dữ liệu:', error);
+        alert('❌ Có lỗi xảy ra khi xóa dữ liệu: ' + error.message);
+    }
+}
+
+// =======================
+// HOẶC GÁN TRỰC TIẾP VÀO NÚT (Cách đơn giản)
+// =======================
+function setupClearDataButton() {
+    const clearDataButton = document.getElementById('clear-all-data');
+    if (clearDataButton) {
+        clearDataButton.addEventListener('click', function() {
+            if (confirm('🗑️ Bạn có chắc chắn muốn xóa TOÀN BỘ dữ liệu? Thao tác này không thể hoàn tác!')) {
+                // XÓA TOÀN BỘ
+                localStorage.clear();
+                window.hkdData = {};
+                window.currentCompany = null;
+                
+                console.log('✅ Đã xóa toàn bộ dữ liệu localStorage');
+                alert('✅ Đã xóa toàn bộ dữ liệu thành công!');
+                
+                // Reload trang
+                window.location.reload();
+            }
         });
     }
+}
 
-    console.log('Ứng dụng đã khởi động hoàn tất.');
+// Gọi hàm này trong DOMContentLoaded
+document.addEventListener('DOMContentLoaded', function() {
+    // ... các code khác
+    
+    // Thay thế phần gắn sự kiện cũ bằng:
+    setupClearDataButton();
 });
+
+// =======================
+// HÀM SHOW MODAL (nếu chưa có)
+// =======================
+if (typeof window.showModal === 'undefined') {
+    window.showModal = function(title, content) {
+        const modal = document.createElement('div');
+        modal.id = 'custom-modal';
+        modal.style.display = 'block';
+        modal.innerHTML = `
+            <div class="modal-overlay">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>${title}</h3>
+                        <span class="close" onclick="document.getElementById('custom-modal').remove()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        ${content}
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    };
+}

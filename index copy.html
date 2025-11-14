@@ -17,16 +17,9 @@
             <div class="company-item">Chưa có dữ liệu</div>
         </div>
         <div class="sidebar-footer" style="padding: 20px; border-top: 1px solid #ddd;">
-    <button id="clear-all-data" class="btn-danger" style="width: 100%;">
-        🗑️ Xóa Hết Dữ Liệu
-    </button>
-</div>
-    
-    <!-- Thêm nút debug (tùy chọn) -->
-    <button onclick="debugDataStatus()" class="btn-secondary" style="width: 100%; margin-top: 10px; font-size: 12px;">
-        🔍 Debug Data
-    </button>
-</div>
+            <button id="clear-all-data" class="btn-danger" style="width: 100%;">Xóa Hết Dữ Liệu</button>
+        </div>
+    </div>
     
     <div class="main-content">
         <div class="header">
@@ -38,72 +31,15 @@
         
         <!-- Menu ngang 7 tab -->
         <div class="nav-tabs">
-            <div class="nav-tab" data-tab="xu-ly-hoa-don-loi">Xử Lý Hóa Đơn</div>
+            <div class="nav-tab active" data-tab="so-du-dau-ky">Số Dư Đầu Kỳ</div>
             <div class="nav-tab" data-tab="mua-hang">Mua Hàng</div>
             <div class="nav-tab" data-tab="kho-hang">Kho Hàng</div>
             <div class="nav-tab" data-tab="ban-hang">Bán Hàng</div>
             <div class="nav-tab" data-tab="tien-cong-no">Tiền & Công Nợ</div>
             <div class="nav-tab" data-tab="thue-bao-cao">Thuế & Báo Cáo</div>
             <div class="nav-tab" data-tab="so-sach">Sổ Sách</div>
-            <div class="nav-tab active" data-tab="so-du-dau-ky">Số Dư Đầu Kỳ</div>
-        </div>
-        <!-- Thêm nội dung tab -->
-<div class="tab-content" id="xu-ly-hoa-don-loi">
-    <div class="content-header">
-        <h2>🛠️ Xử Lý Hóa Đơn Lỗi - <span id="company-name-xu-ly"></span></h2>
-    </div>
-    <div class="content-body">
-        <div class="card">
-            <div class="card-header">📊 Thống Kê Hóa Đơn Lỗi</div>
-            <div id="error-invoice-stats">
-                <!-- Thống kê sẽ được render ở đây -->
-            </div>
         </div>
         
-        <div class="card">
-            <div class="card-header">🔍 Danh Sách Hóa Đơn Cần Sửa</div>
-            <div class="form-group">
-                <input type="text" id="search-error-invoices" placeholder="Tìm kiếm hóa đơn lỗi...">
-            </div>
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>STT</th>
-                        <th>Số HĐ</th>
-                        <th>Ngày</th>
-                        <th>Nhà cung cấp</th>
-                        <th>MST NCC</th>
-                        <th>Tổng tiền</th>
-                        <th>Chênh lệch</th>
-                        <th>Trạng thái</th>
-                        <th>Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody id="error-invoice-list">
-                    <tr><td colspan="9" style="text-align: center;">Chưa có hóa đơn lỗi</td></tr>
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">📈 Hóa Đơn Đã Xử Lý</div>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Số HĐ</th>
-                        <th>Ngày sửa</th>
-                        <th>Người sửa</th>
-                        <th>Chênh lệch trước/sau</th>
-                        <th>Kết quả</th>
-                    </tr>
-                </thead>
-                <tbody id="processed-invoice-list">
-                    <tr><td colspan="5" style="text-align: center;">Chưa có hóa đơn đã xử lý</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
         <!-- Tab Số Dư Đầu Kỳ -->
         <div class="tab-content active" id="so-du-dau-ky">
             <div class="content-header">
@@ -153,44 +89,21 @@
         </div>
         
         <!-- Tab Mua Hàng -->
-        <<!-- Tab Mua Hàng -->
-<div class="tab-content" id="mua-hang">
-    <div class="content-header">
-        <h2>Mua Hàng / Hóa Đơn Đầu Vào - <span id="company-name-mua-hang"></span></h2>
-    </div>
-    <div class="content-body">
-        <div class="card">
-            <div class="card-header">1. Nhập Hóa Đơn Mua Hàng (XML/ZIP)</div>
-            <div class="card-body">
-                <div class="form-group">
-                    <input type="file" id="purchase-invoice-files" multiple accept=".zip, .xml">
-                </div>
-                <button id="process-purchase-invoices" class="btn-primary">Trích Xuất Hóa Đơn</button>
+        <div class="tab-content" id="mua-hang">
+            <div class="content-header">
+                <h2>Mua Hàng / Hóa Đơn Đầu Vào - <span id="company-name-mua-hang"></span></h2>
             </div>
-        </div>
-        
-        <!-- BỘ LỌC SẼ ĐƯỢC CHÈN TỰ ĐỘNG Ở ĐÂY -->
-        <div id="purchase-invoice-list-section">
-            <div class="card">
-                <div class="card-header">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span>2. Danh Sách Hóa Đơn Mua Hàng</span>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <div class="form-group" style="margin: 0; min-width: 300px;">
-                                <input type="text" class="form-control" id="purchase-search-input" 
-                                       placeholder="🔍 Tìm theo tên NCC, số HĐ, MST..." 
-                                       style="padding: 8px 12px;">
-                            </div>
-                            <div class="form-check" style="margin: 0; white-space: nowrap;">
-                                <input type="checkbox" class="form-check-input" id="show-errors-first" checked>
-                                <label class="form-check-label" for="show-errors-first" style="font-size: 12px;">
-                                    ⚠️ Lỗi trên cùng
-                                </label>
-                            </div>
-                        </div>
+            <div class="content-body">
+                <div class="card">
+                    <div class="card-header">1. Nhập Hóa Đơn Mua Hàng (XML/ZIP)</div>
+                    <div class="form-group">
+                        <input type="file" id="purchase-invoice-files" multiple accept=".zip, .xml">
                     </div>
+                    <button id="process-purchase-invoices" class="btn-primary">Trích Xuất Hóa Đơn</button>
                 </div>
-                <div class="card-body">
+                
+                <div class="card">
+                    <div class="card-header">2. Danh Sách Hóa Đơn Mua Hàng</div>
                     <table class="table table-striped">
                         <thead>
                             <tr>
@@ -206,66 +119,29 @@
                             </tr>
                         </thead>
                         <tbody id="purchase-invoice-list">
-                            <tr>
-                                <td colspan="9" style="text-align: center; padding: 20px;">
-                                    📭 Chưa có hóa đơn mua hàng
-                                </td>
-                            </tr>
+                            <tr><td colspan="9" style="text-align: center;">Chưa có hóa đơn mua hàng</td></tr>
                         </tbody>
                     </table>
                 </div>
-            </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">3. Công Nợ Phải Trả NCC (331)</div>
-            <div class="card-body">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Nhà cung cấp</th>
-                            <th>MST</th>
-                            <th>Tổng nợ</th>
-                            <th>Đã thanh toán</th>
-                            <th>Còn nợ</th>
-                            <th>Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody id="payable-list">
-                        <tr>
-                            <td colspan="6" style="text-align: center; padding: 20px;">
-                                💳 Chưa có dữ liệu công nợ
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-header">🖨️ Công Cụ In & Xuất</div>
-            <div class="card-body">
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn btn-info" onclick="printPurchaseInvoices()">
-                        🧾 In Chứng Từ
-                    </button>
-                    <button class="btn btn-warning" onclick="printPurchaseInvoiceInput()">
-                        📄 In Hóa Đơn
-                    </button>
-                    <button class="btn btn-success" onclick="printPurchaseReceipts()">
-                        📦 In Phiếu Nhập
-                    </button>
-                    <button class="btn btn-primary" onclick="printPurchaseLedger()">
-                        📒 In Sổ Mua Hàng
-                    </button>
-                    <button class="btn btn-dark" onclick="exportPurchaseToExcel()">
-                        📊 Xuất Excel
-                    </button>
+                
+                <div class="card">
+                    <div class="card-header">3. Công Nợ Phải Trả NCC (331)</div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Nhà cung cấp</th>
+                                <th>MST</th>
+                                <th>Tổng nợ</th>
+                                <th>Đã thanh toán</th>
+                                <th>Còn nợ</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payable-list">
+                            <tr><td colspan="6" style="text-align: center;">Chưa có dữ liệu công nợ</td></tr>
+                        </tbody>
+                    </table>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
                 
                 <div class="card">
                     <div class="card-header">In Chứng Từ</div>
@@ -279,75 +155,63 @@
         </div>
 
         <!-- Tab Kho Hàng -->
-<div class="tab-content" id="kho-hang">
-    <div class="content-header">
-        <h2>Quản Lý Kho Hàng - <span id="company-name-kho-hang"></span></h2>
-    </div>
-    <div class="content-body">
-        <div class="card">
-            <div class="card-header">Danh Mục Hàng Hóa</div>
-            <!-- THÊM BỘ LỌC Ở ĐÂY -->
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <input type="text" id="search-products" class="form-control" placeholder="Tìm kiếm theo mã SP, tên SP...">
+        <div class="tab-content" id="kho-hang">
+            <div class="content-header">
+                <h2>Quản Lý Kho Hàng - <span id="company-name-kho-hang"></span></h2>
+            </div>
+            <div class="content-body">
+                <div class="card">
+                    <div class="card-header">Danh Mục Hàng Hóa</div>
+                    <div class="form-group">
+                        <input type="text" id="search-products" placeholder="Tìm kiếm hàng hóa...">
+                    </div>
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>MSP</th>
+                                <th>Tên hàng hóa</th>
+                                <th>ĐVT</th>
+                                <th>Số lượng tồn</th>
+                                <th>Đơn giá</th>
+                                <th>Thành tiền</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="product-catalog-list">
+                            <tr><td colspan="7" style="text-align: center;">Chưa có dữ liệu hàng hóa</td></tr>
+                        </tbody>
+                    </table>
                 </div>
-                <div class="col-md-3">
-                    <select id="category-filter" class="form-control">
-                        <option value="all">Tất cả phân loại</option>
-                        <option value="hang_hoa">Hàng hóa</option>
-                        <option value="chiet_khau">Chiết khấu</option>
-                        <option value="khuyen_mai">Khuyến mãi</option>
-                    </select>
+                
+                <div class="card">
+                    <div class="card-header">Thẻ Kho Chi Tiết</div>
+                    <div id="stock-card-container">
+                        <!-- Thẻ kho sẽ được hiển thị ở đây -->
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">Báo Cáo Tồn Kho</div>
+                    <div class="form-group">
+                        <label for="stock-report-date">Ngày báo cáo</label>
+                        <input type="date" id="stock-report-date">
+                    </div>
+                    <button id="generate-stock-report" class="btn-primary">Tạo Báo Cáo Tồn Kho</button>
+                    <div id="stock-report-result" class="hidden">
+                        <!-- Kết quả báo cáo tồn kho -->
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">In Chứng Từ</div>
+                    <div class="button-group">
+                        <button class="btn-primary" onclick="printStockCards()">In Thẻ Kho</button>
+                        <button class="btn-primary" onclick="printStockLedger()">In Sổ Nhập-Xuất-Tồn</button>
+                        <button class="btn-primary" onclick="printStockReport()">In Báo Cáo Tồn Kho</button>
+                    </div>
                 </div>
             </div>
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>MSP</th>
-                        <th>Tên hàng hóa</th>
-                        <th>Phân loại</th> <!-- THÊM CỘT PHÂN LOẠI -->
-                        <th>ĐVT</th>
-                        <th>Số lượng tồn</th>
-                        <th>Đơn giá</th>
-                        <th>Thành tiền</th>
-                        <th>Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody id="product-catalog-list">
-                    <tr><td colspan="8" style="text-align: center;">Chưa có dữ liệu hàng hóa</td></tr>
-                </tbody>
-            </table>
         </div>
-        
-        <div class="card">
-            <div class="card-header">Thẻ Kho Chi Tiết</div>
-            <div id="stock-card-container">
-                <!-- Thẻ kho sẽ được hiển thị ở đây -->
-            </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">Báo Cáo Tồn Kho</div>
-            <div class="form-group">
-                <label for="stock-report-date">Ngày báo cáo</label>
-                <input type="date" id="stock-report-date">
-            </div>
-            <button id="generate-stock-report" class="btn-primary">Tạo Báo Cáo Tồn Kho</button>
-            <div id="stock-report-result" class="hidden">
-                <!-- Kết quả báo cáo tồn kho -->
-            </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">In Chứng Từ</div>
-            <div class="button-group">
-                <button class="btn-primary" onclick="printStockCards()">In Thẻ Kho</button>
-                <button class="btn-primary" onclick="printStockLedger()">In Sổ Nhập-Xuất-Tồn</button>
-                <button class="btn-primary" onclick="printStockReport()">In Báo Cáo Tồn Kho</button>
-            </div>
-        </div>
-    </div>
-</div>
 
         <!-- Tab Bán Hàng -->
         <div class="tab-content" id="ban-hang">
@@ -747,7 +611,6 @@
     </div>
 
     <script src="zip-trichxuat.js"></script>
-    <script src="xulyhoadonloi.js"></script>
     <script src="hoadon.js"></script>
     <script src="tonkho.js"></script>
     <script src="xuathang.js"></script>
