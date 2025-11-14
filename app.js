@@ -79,7 +79,50 @@ function saveData() {
 // =======================================================
 
 function renderCompanyList() {
-    // ... (giữ nguyên hàm renderCompanyList từ file app.js cũ)
+    const companyList = document.getElementById('company-list');
+    if (!companyList) {
+        console.error('❌ Không tìm thấy #company-list');
+        return;
+    }
+
+    companyList.innerHTML = '';
+
+    if (!window.hkdData || Object.keys(window.hkdData).length === 0) {
+        companyList.innerHTML = '<div class="company-item no-company">📭 Chưa có công ty nào</div>';
+        return;
+    }
+
+    const companies = Object.keys(window.hkdData).sort();
+    
+    companies.forEach(taxCode => {
+        const company = window.hkdData[taxCode];
+        const companyItem = document.createElement('div');
+        companyItem.className = 'company-item';
+        if (taxCode === window.currentCompany) {
+            companyItem.classList.add('active');
+        }
+        
+        // Tính tổng số lượng tồn kho
+        const totalStock = Array.isArray(company.tonkhoMain) 
+            ? company.tonkhoMain.reduce((sum, p) => sum + (p.quantity || 0), 0)
+            : 0;
+
+        companyItem.innerHTML = `
+            <div class="company-name">${company.name || 'Chưa có tên'}</div>
+            <div class="company-mst">MST: ${taxCode}</div>
+            <div class="company-info">
+                <small>🧾 HĐ: ${company.invoices?.length || 0} | 📦 Tồn kho: ${totalStock.toLocaleString('vi-VN')} SP</small>
+            </div>
+        `;
+
+        companyItem.addEventListener('click', () => {
+            selectCompany(taxCode);
+        });
+
+        companyList.appendChild(companyItem);
+    });
+    
+    console.log(`✅ Đã render ${companies.length} công ty`);
 }
 
 function selectCompany(taxCode) {

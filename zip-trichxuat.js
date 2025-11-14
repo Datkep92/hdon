@@ -162,22 +162,265 @@ async function handleZipFiles(files){
 }
 
 // =======================
-// Tạo / kiểm tra HKD
+// THÊM CÁC HÀM BỊ THIẾU VÀO muahang.js
 // =======================
+
+// Hàm đảm bảo dữ liệu HKD tồn tại
 function ensureHkdData(taxCode, companyName = '') {
-    if (!hkdData[taxCode]) {
-        hkdData[taxCode] = {
+    if (!window.hkdData[taxCode]) {
+        console.log(`🏢 TẠO MỚI CÔNG TY: ${taxCode} - ${companyName}`);
+        window.hkdData[taxCode] = {
             name: companyName || taxCode,
             invoices: [],
             tonkhoMain: [],
             tonkhoMainDefault: null,
             exports: []
         };
-    } else if (companyName && hkdData[taxCode].name === taxCode) {
-        // Cập nhật tên công ty nếu chưa có
-        hkdData[taxCode].name = companyName;
+    } else if (companyName && window.hkdData[taxCode].name === taxCode) {
+        window.hkdData[taxCode].name = companyName;
+    }
+    
+    if (!window.hkdData[taxCode].invoices) {
+        window.hkdData[taxCode].invoices = [];
     }
 }
+
+// Hàm kiểm tra trùng lặp
+function isDuplicate(invoice, taxCode) {
+    ensureHkdData(taxCode);
+    const hkd = window.hkdData[taxCode];
+    
+    const key = `${invoice.invoiceInfo.mccqt}_${invoice.invoiceInfo.symbol}_${invoice.invoiceInfo.number}`;
+    invoice.uniqueKey = key;
+    
+    console.log(`🔍 Kiểm tra trùng: ${key}`);
+    
+    if (!hkd.invoices || hkd.invoices.length === 0) {
+        console.log(`✅ Không trùng - Đây là HĐ đầu tiên`);
+        return false;
+    }
+    
+    const isDuplicate = hkd.invoices.some(inv => {
+        const existingKey = inv.uniqueKey || `${inv.invoiceInfo.mccqt}_${inv.invoiceInfo.symbol}_${inv.invoiceInfo.number}`;
+        return existingKey === key;
+    });
+    
+    console.log(`📝 Kết quả: ${isDuplicate ? 'TRÙNG' : 'KHÔNG TRÙNG'}`);
+    return isDuplicate;
+}
+
+// Hàm cập nhật tồn kho
+function updateStock(taxCode, invoice) {
+    ensureHkdData(taxCode);
+    const hkd = window.hkdData[taxCode];
+    
+    console.log('🔄 Cập nhật tồn kho...');
+    
+    invoice.products.forEach(item => {
+        if (item.category !== 'hang_hoa') return;
+        
+        let stockItem = hkd.tonkhoMain.find(p => p.msp === item.msp);
+        
+        if (stockItem) {
+            stockItem.quantity += parseFloat(item.quantity);
+            stockItem.amount = window.accountingRound(stockItem.amount + item.amount);
+            console.log(`✅ Cộng dồn: ${item.name} (+${item.quantity})`);
+        } else {
+            hkd.tonkhoMain.push({
+                msp: item.msp,
+                code: item.msp,
+                name: item.name,
+                unit: item.unit,
+                quantity: parseFloat(item.quantity),
+                amount: item.amount
+            });
+            console.log(`✅ Thêm mới: ${item.name} (${item.quantity})`);
+        }
+    });
+}
+
+// =======================
+// SỬA HÀM processPurchaseInvoices
+// =======================
+async function processPurchaseInvoices() {
+    const fileInput = document.getElementById('purchase-invoice-files');
+    const files = fileInput.files;
+
+    if (files.length === 0) {
+        alert('❌ Vui lòng chọn file hóa đơn mua hàng (ZIP/XML).');
+        return;
+    }
+
+    try {
+        console.log('🔄 Bắt đầu xử lý...');
+        debugCompanyData();
+
+        // Tạo container thống kê
+        createPurchaseStatsContainer();
+        updatePurchaseFileStats(files.length, 0, 0, 0, 0);
+        
+        // 🔥 QUAN TRỌNG: SỬ DỤNG handleZipFiles CỦA CHÍNH MUAHANG.JS
+        const results = await processPurchaseFiles(files);
+        
+        // Cập nhật thống kê
+        updatePurchaseFileStats(
+            files.length, 
+            results.processedCount, 
+            results.errorCount, 
+            results.duplicateCount, 
+            results.stockPostedCount
+        );
+        
+        // Hiển thị kết quả chi tiết
+        if (results.fileResults && results.fileResults.length > 0) {
+            showPurchaseFileResults(results.fileResults);
+        }
+        
+        console.log('✅ Kết thúc xử lý:');
+        debugCompanyData();
+        
+        // 🔥 QUAN TRỌNG: CẬP NHẬT DANH SÁCH CÔNG TY
+        if (typeof window.renderCompanyList === 'function') {
+            window.renderCompanyList();
+            console.log('✅ Đã gọi renderCompanyList');
+        }
+
+        // TỰ ĐỘNG CHỌN CÔNG TY ĐẦU TIÊN
+        if (!window.currentCompany) {
+            const companies = Object.keys(window.hkdData);
+            if (companies.length > 0) {
+                const firstCompany = companies[0];
+                if (typeof window.selectCompany === 'function') {
+                    window.selectCompany(firstCompany);
+                } else {
+                    window.currentCompany = firstCompany;
+                    updateCurrentCompanyDisplay();
+                }
+                console.log(`✅ Đã tự động chọn công ty: ${firstCompany}`);
+            }
+        }
+
+        // Cập nhật giao diện
+        loadPurchaseInvoices();
+        loadPayableList();
+        
+        // HIỂN THỊ KẾT QUẢ
+        showPurchaseFinalResult(results, files.length);
+        
+    } catch (error) {
+        console.error('❌ Lỗi xử lý:', error);
+        alert(`❌ LỖI XỬ LÝ:\n\n${error.message}`);
+    }
+}
+
+// =======================
+// HÀM XỬ LÝ FILE MUA HÀNG (THAY THẾ handleZipFiles)
+// =======================
+async function processPurchaseFiles(files) {
+    let processedCount = 0;
+    let duplicateCount = 0;
+    let errorCount = 0;
+    let stockPostedCount = 0;
+    
+    const fileResults = [];
+    
+    for (const file of files) {
+        if (!file.name.toLowerCase().endsWith('.zip') && !file.name.toLowerCase().endsWith('.xml')) {
+            fileResults.push({ file: file.name, status: 'error', message: 'File không phải ZIP/XML' });
+            errorCount++;
+            continue;
+        }
+        
+        let invoice = null;
+        try {
+            // Sử dụng hàm trích xuất từ zip-trichxuat.js
+            invoice = await window.extractInvoiceFromZip(file);
+        } catch (error) {
+            fileResults.push({ file: file.name, status: 'error', message: error.message });
+            errorCount++;
+            continue;
+        }
+
+        if (!invoice || !invoice.products || invoice.products.length === 0) {
+            fileResults.push({ file: file.name, status: 'error', message: 'Không có sản phẩm' });
+            errorCount++;
+            continue;
+        }
+        
+        try {
+            // 🔥 SỬ DỤNG MST NGƯỜI MUA
+            const taxCode = invoice.buyerInfo.taxCode || 'UNKNOWN';
+            const companyName = invoice.buyerInfo.name || taxCode;
+            
+            console.log(`🔍 Phát hiện hóa đơn: MST=${taxCode}, Tên=${companyName}`);
+            
+            // TẠO/GOM CÔNG TY
+            ensureHkdData(taxCode, companyName);
+            
+            // KIỂM TRA TRÙNG
+            if (isDuplicate(invoice, taxCode)) {
+                console.log(`🚫 BỎ QUA HĐ TRÙNG: ${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}`);
+                fileResults.push({ file: file.name, status: 'duplicate', message: 'Hóa đơn trùng' });
+                duplicateCount++;
+                continue;
+            }
+            
+            console.log(`✅ THÊM HĐ MỚI: ${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}`);
+            
+            // THIẾT LẬP TRẠNG THÁI
+            invoice.status = {
+                validation: 'ok', // Tạm thời cho là OK
+                stockPosted: false,
+                difference: 0,
+                calculatedTotal: invoice.summary.calculatedTotal,
+                xmlTotal: invoice.summary.totalAfterTax
+            };
+            
+            // THÊM METADATA
+            invoice.uniqueKey = `${invoice.invoiceInfo.mccqt}_${invoice.invoiceInfo.symbol}_${invoice.invoiceInfo.number}`;
+            invoice.extractedAt = new Date().toISOString();
+            invoice.sourceFile = file.name;
+            
+            // CHUYỂN TỒN KHO
+            updateStock(taxCode, invoice);
+            invoice.status.stockPosted = true;
+            stockPostedCount++;
+            
+            // THÊM VÀO DANH SÁCH HÓA ĐƠN
+            window.hkdData[taxCode].invoices.push(invoice);
+            
+            fileResults.push({ 
+                file: file.name, 
+                status: 'success', 
+                message: `Thành công - Đã chuyển tồn kho` 
+            });
+            processedCount++;
+            
+            console.log(`[NHẬP HĐ] MST=${taxCode}, HĐ=${invoice.uniqueKey}`);
+            
+        } catch (error) {
+            fileResults.push({ file: file.name, status: 'error', message: error.message });
+            errorCount++;
+            console.error('Lỗi xử lý file:', file.name, error);
+        }
+    }
+    
+    console.log(`📊 Kết quả: ${processedCount} thành công, ${duplicateCount} trùng, ${errorCount} lỗi`);
+    
+    return { 
+        processedCount, 
+        duplicateCount, 
+        errorCount, 
+        stockPostedCount,
+        fileResults 
+    };
+}
+
+// =======================
+// CÁC HÀM HIỆN CÓ (GIỮ NGUYÊN)
+// =======================
+// Giữ nguyên các hàm: createPurchaseStatsContainer, updatePurchaseFileStats, 
+// showPurchaseFileResults, showPurchaseFinalResult, debugCompanyData, etc.
 
 // =======================
 // Hàm loại bỏ dấu tiếng Việt
@@ -612,16 +855,7 @@ function updateStock(taxCode, invoice) {
 // =======================
 // Kiểm tra trùng HĐ
 // =======================
-function isDuplicate(invoice, taxCode) {
-    ensureHkdData(taxCode);
-    const key = `${invoice.invoiceInfo.mccqt}_${invoice.invoiceInfo.symbol}_${invoice.invoiceInfo.number}`;
-    return hkdData[taxCode].invoices.some(inv => 
-        inv.uniqueKey === key ||
-        (inv.invoiceInfo.mccqt === invoice.invoiceInfo.mccqt &&
-         inv.invoiceInfo.symbol === invoice.invoiceInfo.symbol &&
-         inv.invoiceInfo.number === invoice.invoiceInfo.number)
-    );
-}
+
 
 // =======================
 // Trích xuất hóa đơn từ ZIP

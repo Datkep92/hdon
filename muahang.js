@@ -31,7 +31,6 @@ function updateFileStats(total, success, error, duplicate, stockPosted = 0) {
     if (currentTab === 'mua-hang') {
         // Nếu đang ở tab Mua Hàng, sử dụng hàm của tab Mua Hàng
         if (typeof updatePurchaseFileStats === 'function') {
-            updatePurchaseFileStats(total, success, error, duplicate, stockPosted);
         } else {
             console.warn('⚠️ Hàm updatePurchaseFileStats không tồn tại');
         }
@@ -63,10 +62,19 @@ function updateFileStats(total, success, error, duplicate, stockPosted = 0) {
         console.warn('⚠️ Không thể cập nhật thống kê tab cũ:', error.message);
     }
 }
+// XÓA HÀM TRÙNG LẶP NÀY (đã có trong zip-trichxuat.js)
+/*
+function updateFileStats(total, success, error, duplicate, stockPosted = 0) {
+    // XÓA TOÀN BỘ HÀM NÀY
+}
+*/
+
+// GIỮ LẠI HÀM createPurchaseStatsContainer VÀ updatePurchaseFileStats
 function createPurchaseStatsContainer() {
-    // Kiểm tra xem container đã tồn tại chưa
-    if (document.getElementById('purchase-file-stats')) {
-        return;
+    // KIỂM TRA KỸ TRƯỚC KHI TẠO
+    const existingStats = document.getElementById('purchase-file-stats');
+    if (existingStats) {
+        existingStats.remove(); // Xóa cái cũ nếu tồn tại
     }
     
     const fileInputSection = document.querySelector('#mua-hang .card:first-child');
@@ -107,6 +115,118 @@ function createPurchaseStatsContainer() {
     fileInputSection.insertAdjacentHTML('afterend', statsHtml);
     console.log('✅ Đã tạo container thống kê');
 }
+
+// THÊM HÀM HIỂN THỊ KẾT QUẢ FILE BỊ THIẾU
+function showPurchaseFileResults(fileResults) {
+    let resultsHtml = `
+        <div class="card">
+            <div class="card-header">📋 Chi Tiết Kết Quả Xử Lý</div>
+            <div style="max-height: 300px; overflow-y: auto;">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Trạng thái</th>
+                            <th>Thông báo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+    
+    fileResults.forEach(result => {
+        let statusClass = '';
+        let statusIcon = '';
+        
+        switch(result.status) {
+            case 'success':
+                statusClass = 'text-success';
+                statusIcon = '✅';
+                break;
+            case 'duplicate':
+                statusClass = 'text-warning';
+                statusIcon = '⚠️';
+                break;
+            case 'error':
+                statusClass = 'text-danger';
+                statusIcon = '❌';
+                break;
+            default:
+                statusClass = 'text-secondary';
+                statusIcon = '🔍';
+        }
+        
+        resultsHtml += `
+            <tr>
+                <td><small>${result.file}</small></td>
+                <td class="${statusClass}">${statusIcon} ${result.status}</td>
+                <td><small>${result.message}</small></td>
+            </tr>
+        `;
+    });
+    
+    resultsHtml += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    
+    // Hiển thị trong modal
+    window.showModal('📋 Kết Quả Xử Lý Chi Tiết', resultsHtml);
+}
+
+// THÊM HÀM HIỂN THỊ KẾT QUẢ CUỐI CÙNG
+function showPurchaseFinalResult(results, totalFiles) {
+    const successRate = totalFiles > 0 ? (results.processedCount / totalFiles * 100).toFixed(1) : 0;
+    
+    const message = `
+🎯 **XỬ LÝ HOÀN TẤT!**
+
+📊 **Tổng kết:**
+• 📁 Tổng file: ${totalFiles}
+• ✅ Thành công: ${results.processedCount}
+• 🔄 Trùng lặp: ${results.duplicateCount}
+• 📦 Đã chuyển kho: ${results.stockPostedCount}
+• ❌ Lỗi: ${results.errorCount}
+• 📈 Tỷ lệ thành công: ${successRate}%
+
+🏢 **Tình trạng công ty:**
+• Đang chọn: ${window.currentCompany ? window.hkdData[window.currentCompany]?.name : 'Chưa chọn'}
+• Tổng công ty: ${Object.keys(window.hkdData).length}
+
+💡 **Tiếp theo:**
+• Hóa đơn đã được gom theo MST người mua
+• Tự động tạo công ty nếu chưa có
+• Dữ liệu đã sẵn sàng trong tab Mua Hàng
+    `;
+    
+    // Sử dụng console.log để debug
+    console.log('🔍 DEBUG - Danh sách công ty sau xử lý:', Object.keys(window.hkdData));
+    console.log('🔍 DEBUG - Hóa đơn trong công ty hiện tại:', 
+        window.currentCompany ? window.hkdData[window.currentCompany]?.invoices?.length : 'Chưa chọn công ty');
+    
+    alert(message);
+}
+// THÊM HÀM DEBUG VÀO muahang.js
+function debugCompanyData() {
+    console.log('🔍 DEBUG COMPANY DATA:');
+    console.log('- Số công ty:', Object.keys(window.hkdData).length);
+    
+    Object.keys(window.hkdData).forEach(taxCode => {
+        const company = window.hkdData[taxCode];
+        console.log(`- ${taxCode}: ${company.name}`);
+        console.log(`  Số HĐ: ${company.invoices?.length || 0}`);
+        console.log(`  Tồn kho: ${company.tonkhoMain?.length || 0} sản phẩm`);
+        
+        // Log chi tiết hóa đơn
+        if (company.invoices && company.invoices.length > 0) {
+            company.invoices.forEach((inv, idx) => {
+                console.log(`  HĐ ${idx + 1}: ${inv.invoiceInfo.symbol}/${inv.invoiceInfo.number} - ${inv.summary.calculatedTotal}`);
+            });
+        }
+    });
+}
+
 
 function updatePurchaseFileStats(total, success, error, duplicate, stockPosted = 0) {
     console.log('🔄 Cập nhật thống kê:', {total, success, error, duplicate, stockPosted});
@@ -470,34 +590,7 @@ function createPurchaseReceipt(invoiceId) {
     }
 }
 
-function updateStockAfterPurchase(invoice) {
-    const hkd = window.hkdData[window.currentCompany];
-    
-    invoice.products.forEach(item => {
-        if (item.category !== 'hang_hoa') return;
-        
-        let stockItem = hkd.tonkhoMain.find(p => p.msp === item.msp);
-        
-        if (stockItem) {
-            // Cộng dồn số lượng
-            stockItem.quantity += parseFloat(item.quantity);
-            stockItem.amount += item.amount;
-            console.log(`📦 Cộng dồn tồn kho: ${item.msp} (+${item.quantity})`);
-        } else {
-            // Thêm mới
-            hkd.tonkhoMain.push({
-                msp: item.msp,
-                code: item.msp,
-                name: item.name,
-                unit: item.unit,
-                quantity: parseFloat(item.quantity),
-                amount: item.amount,
-                category: item.category
-            });
-            console.log(`📦 Thêm mới tồn kho: ${item.msp} (${item.quantity})`);
-        }
-    });
-}
+
 
 function createPurchaseAccountingEntry(invoice) {
     const hkd = window.hkdData[window.currentCompany];
@@ -566,82 +659,47 @@ function printPurchaseReceipts() {
 function printPurchaseLedger() {
     alert('🖨️ Chức năng in sổ chi tiết mua hàng đang được phát triển');
 }
-async function processPurchaseInvoices() {
-    const fileInput = document.getElementById('purchase-invoice-files');
-    const files = fileInput.files;
-
-    if (files.length === 0) {
-        alert('❌ Vui lòng chọn file hóa đơn mua hàng (ZIP/XML).');
-        return;
-    }
-
-    try {
-        // Hiển thị thông tin file được chọn
-        let fileInfo = '📁 DANH SÁCH FILE ĐÃ CHỌN:\n';
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            fileInfo += `\n${i + 1}. ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+// THÊM HÀM DEBUG VÀO muahang.js
+function debugCompanyData() {
+    console.log('🔍 DEBUG COMPANY DATA:');
+    console.log('- Số công ty:', Object.keys(window.hkdData).length);
+    
+    Object.keys(window.hkdData).forEach(taxCode => {
+        const company = window.hkdData[taxCode];
+        console.log(`- ${taxCode}: ${company.name}`);
+        console.log(`  Số HĐ: ${company.invoices?.length || 0}`);
+        console.log(`  Tồn kho: ${company.tonkhoMain?.length || 0} sản phẩm`);
+        
+        // Log chi tiết hóa đơn
+        if (company.invoices && company.invoices.length > 0) {
+            company.invoices.forEach((inv, idx) => {
+                console.log(`  HĐ ${idx + 1}: ${inv.invoiceInfo.symbol}/${inv.invoiceInfo.number} - ${inv.summary.calculatedTotal}`);
+            });
         }
-        alert(fileInfo + '\n\n⏳ Đang xử lý...');
-
-        // Kiểm tra hàm xử lý
-        if (typeof window.handleZipFiles !== 'function') {
-            throw new Error('Hệ thống trích xuất chưa được khởi tạo');
-        }
-
-        // Tạo container thống kê
-        createPurchaseStatsContainer();
-        updatePurchaseFileStats(files.length, 0, 0, 0, 0);
-        
-        // Xử lý files - HỆ THỐNG SẼ TỰ ĐỘNG TẠO CÔNG TY THEO MST
-        const results = await window.handleZipFiles(files);
-        
-        // Cập nhật thống kê
-        updatePurchaseFileStats(
-            files.length, 
-            results.processedCount, 
-            results.errorCount, 
-            results.duplicateCount, 
-            results.stockPostedCount
-        );
-        
-        // Hiển thị kết quả chi tiết
-        if (results.fileResults && results.fileResults.length > 0) {
-            showPurchaseFileResults(results.fileResults);
-        }
-        
-        // 🔥 QUAN TRỌNG: CẬP NHẬT DANH SÁCH CÔNG TY NGAY LẬP TỨC
-        if (typeof window.renderCompanyList === 'function') {
-            window.renderCompanyList();
-            console.log('✅ Đã gọi renderCompanyList');
-        } else {
-            console.error('❌ Hàm renderCompanyList không tồn tại');
-            // Fallback: tự render danh sách công ty
-            renderCompanyListFallback();
-        }
-        
-        // TỰ ĐỘNG CHỌN CÔNG TY ĐẦU TIÊN NẾU CHƯA CÓ CÔNG TY NÀO ĐƯỢC CHỌN
-        if (!window.currentCompany) {
-            const companies = Object.keys(window.hkdData);
-            if (companies.length > 0) {
-                window.currentCompany = companies[0];
-                // CẬP NHẬT UI CÔNG TY ĐANG CHỌN
-                updateCurrentCompanyDisplay();
-                alert(`🏢 ĐÃ TỰ ĐỘNG CHỌN CÔNG TY:\n${window.hkdData[companies[0]].name}\n(MST: ${companies[0]})`);
-            }
-        }
-        
-        // Cập nhật giao diện
-        loadPurchaseInvoices();
-        loadPayableList();
-        
-        // HIỂN THỊ KẾT QUẢ CUỐI CÙNG
-        showPurchaseFinalResult(results, files.length);
-        
-    } catch (error) {
-        alert(`❌ LỖI XỬ LÝ:\n\n${error.message}`);
-    }
+    });
 }
+
+// THÊM HÀM DEBUG VÀO muahang.js
+function debugCompanyData() {
+    console.log('🔍 DEBUG COMPANY DATA:');
+    console.log('- Số công ty:', Object.keys(window.hkdData).length);
+    
+    Object.keys(window.hkdData).forEach(taxCode => {
+        const company = window.hkdData[taxCode];
+        console.log(`- ${taxCode}: ${company.name}`);
+        console.log(`  Số HĐ: ${company.invoices?.length || 0}`);
+        console.log(`  Tồn kho: ${company.tonkhoMain?.length || 0} sản phẩm`);
+        
+        // Log chi tiết hóa đơn
+        if (company.invoices && company.invoices.length > 0) {
+            company.invoices.forEach((inv, idx) => {
+                console.log(`  HĐ ${idx + 1}: ${inv.invoiceInfo.symbol}/${inv.invoiceInfo.number} - ${inv.summary.calculatedTotal}`);
+            });
+        }
+    });
+}
+
+
 
 // 🔥 THÊM HÀM FALLBACK ĐỂ HIỂN THỊ DANH SÁCH CÔNG TY
 function renderCompanyListFallback() {
