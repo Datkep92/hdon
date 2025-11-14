@@ -610,11 +610,23 @@ async function processPurchaseInvoices() {
             showPurchaseFileResults(results.fileResults);
         }
         
+        // 🔥 QUAN TRỌNG: CẬP NHẬT DANH SÁCH CÔNG TY NGAY LẬP TỨC
+        if (typeof window.renderCompanyList === 'function') {
+            window.renderCompanyList();
+            console.log('✅ Đã gọi renderCompanyList');
+        } else {
+            console.error('❌ Hàm renderCompanyList không tồn tại');
+            // Fallback: tự render danh sách công ty
+            renderCompanyListFallback();
+        }
+        
         // TỰ ĐỘNG CHỌN CÔNG TY ĐẦU TIÊN NẾU CHƯA CÓ CÔNG TY NÀO ĐƯỢC CHỌN
         if (!window.currentCompany) {
             const companies = Object.keys(window.hkdData);
             if (companies.length > 0) {
                 window.currentCompany = companies[0];
+                // CẬP NHẬT UI CÔNG TY ĐANG CHỌN
+                updateCurrentCompanyDisplay();
                 alert(`🏢 ĐÃ TỰ ĐỘNG CHỌN CÔNG TY:\n${window.hkdData[companies[0]].name}\n(MST: ${companies[0]})`);
             }
         }
@@ -623,17 +635,83 @@ async function processPurchaseInvoices() {
         loadPurchaseInvoices();
         loadPayableList();
         
-        if (typeof window.renderCompanyList === 'function') {
-            window.renderCompanyList();
-        }
-        
         // HIỂN THỊ KẾT QUẢ CUỐI CÙNG
         showPurchaseFinalResult(results, files.length);
         
     } catch (error) {
-        alert(`❌ LỖI XỬ LÝ:\n\n${error.message}\n\n💡 Hệ thống sẽ tự động tạo công ty theo MST từ hóa đơn`);
+        alert(`❌ LỖI XỬ LÝ:\n\n${error.message}`);
     }
 }
+
+// 🔥 THÊM HÀM FALLBACK ĐỂ HIỂN THỊ DANH SÁCH CÔNG TY
+function renderCompanyListFallback() {
+    const companyList = document.getElementById('company-list');
+    if (!companyList) {
+        console.error('❌ Không tìm thấy #company-list');
+        return;
+    }
+
+    companyList.innerHTML = '';
+
+    if (!window.hkdData || Object.keys(window.hkdData).length === 0) {
+        companyList.innerHTML = '<div class="company-item no-company">📭 Chưa có công ty nào</div>';
+        return;
+    }
+
+    const companies = Object.keys(window.hkdData).sort();
+    
+    companies.forEach(taxCode => {
+        const company = window.hkdData[taxCode];
+        const companyItem = document.createElement('div');
+        companyItem.className = 'company-item';
+        if (taxCode === window.currentCompany) {
+            companyItem.classList.add('active');
+        }
+        
+        // Tính tổng số lượng tồn kho
+        const totalStock = Array.isArray(company.tonkhoMain) 
+            ? company.tonkhoMain.reduce((sum, p) => sum + (p.quantity || 0), 0)
+            : 0;
+
+        companyItem.innerHTML = `
+            <div class="company-name">${company.name || 'Chưa có tên'}</div>
+            <div class="company-mst">MST: ${taxCode}</div>
+            <div class="company-info">
+                <small>🧾 HĐ: ${company.invoices?.length || 0} | 📦 Tồn kho: ${totalStock.toLocaleString('vi-VN')} SP</small>
+            </div>
+        `;
+
+        companyItem.addEventListener('click', () => {
+            if (typeof window.selectCompany === 'function') {
+                window.selectCompany(taxCode);
+            } else {
+                // Fallback selection
+                window.currentCompany = taxCode;
+                updateCurrentCompanyDisplay();
+                renderCompanyListFallback();
+                loadPurchaseInvoices();
+                loadPayableList();
+            }
+        });
+
+        companyList.appendChild(companyItem);
+    });
+    
+    console.log(`✅ Đã render ${companies.length} công ty`);
+}
+
+// 🔥 THÊM HÀM CẬP NHẬT HIỂN THỊ CÔNG TY ĐANG CHỌN
+function updateCurrentCompanyDisplay() {
+    const currentCompanyElem = document.getElementById('current-company');
+    if (currentCompanyElem && window.currentCompany && window.hkdData[window.currentCompany]) {
+        const companyName = window.hkdData[window.currentCompany].name || window.currentCompany;
+        currentCompanyElem.textContent = `Đang chọn: ${companyName} (MST: ${window.currentCompany})`;
+    }
+}
+
+// 🔥 ĐẢM BẢO CÁC HÀM NÀY ĐƯỢC EXPORT
+window.renderCompanyListFallback = renderCompanyListFallback;
+window.updateCurrentCompanyDisplay = updateCurrentCompanyDisplay;
 function printPurchaseInvoice(invoiceId) {
     alert(`🖨️ In hóa đơn ${invoiceId}\n\nChức năng đang được phát triển...`);
 }
