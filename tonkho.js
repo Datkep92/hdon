@@ -31,9 +31,79 @@ function getClassificationBadgeClass(category) {
     };
     return classes[category] || 'badge-secondary';
 }
-
 /**
- * Hàm tiện ích: Tổng hợp tồn kho hiện tại theo MSP
+ * Hàm tiện ích: Format ngày tháng an toàn - MỚI
+ */
+function safeFormatDate(dateStr) {
+    if (!dateStr) return 'N/A';
+    
+    try {
+        // Chuẩn hóa định dạng ngày tháng
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) {
+            return 'N/A';
+        }
+        
+        // Sử dụng hàm format có sẵn hoặc fallback
+        if (typeof window.formatDate === 'function') {
+            return window.formatDate(dateStr);
+        } else {
+            return date.toLocaleDateString('vi-VN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+        }
+    } catch (error) {
+        console.warn('Lỗi format ngày:', dateStr, error);
+        return 'N/A';
+    }
+}
+/**
+ * Hàm validation điều chỉnh tồn kho - MỚI
+ */
+function validateStockAdjustment(product, newQuantity, newUnitPrice, reason, date) {
+    const errors = [];
+    
+    // Validate số lượng
+    if (isNaN(newQuantity) || newQuantity < 0) {
+        errors.push("Số lượng phải là số dương hoặc bằng 0");
+    }
+    
+    // Validate đơn giá
+    if (isNaN(newUnitPrice) || newUnitPrice < 0) {
+        errors.push("Đơn giá phải là số dương hoặc bằng 0");
+    }
+    
+    // Validate lý do
+    if (!reason || !reason.trim()) {
+        errors.push("Lý do điều chỉnh là bắt buộc");
+    } else if (reason.trim().length < 5) {
+        errors.push("Lý do điều chỉnh phải có ít nhất 5 ký tự");
+    }
+    
+    // Validate ngày
+    if (!date) {
+        errors.push("Ngày điều chỉnh là bắt buộc");
+    } else {
+        const adjustmentDate = new Date(date);
+        if (isNaN(adjustmentDate.getTime())) {
+            errors.push("Ngày điều chỉnh không hợp lệ");
+        }
+    }
+    
+    // Validate sản phẩm
+    if (!product || !product.msp) {
+        errors.push("Thông tin sản phẩm không hợp lệ");
+    }
+    
+    return {
+        isValid: errors.length === 0,
+        errors: errors
+    };
+}
+/**
+ * Hàm tiện ích: Tổng hợp tồn kho hiện tại theo MSP - ĐÃ TỐI ƯU
  */
 function getAggregatedStock() {
     if (!window.hkdData || !window.currentCompany) return {};
@@ -41,12 +111,19 @@ function getAggregatedStock() {
     const aggregatedStock = {};
 
     (hkd.tonkhoMain || []).forEach(product => {
+        // FIX: Validation dữ liệu đầu vào
         const productCategory = product.category || 'hang_hoa';
+        const quantity = parseFloat(product.quantity) || 0;
+        const amount = parseFloat(product.amount) || 0;
+        
+        // Bỏ qua nếu không có MSP
+        if (!product.msp) return;
+
         if (!aggregatedStock[product.msp]) {
             aggregatedStock[product.msp] = {
                 msp: product.msp,
-                name: product.name,
-                unit: product.unit,
+                name: product.name || 'Không có tên',
+                unit: product.unit || 'cái',
                 quantity: 0,
                 totalAmount: 0,
                 category: productCategory,
@@ -54,12 +131,14 @@ function getAggregatedStock() {
             };
         }
 
+        // FIX: Chỉ cộng dồn cho hàng hóa và dịch vụ
         if (productCategory === 'hang_hoa' || productCategory === 'dich_vu') {
-            aggregatedStock[product.msp].quantity += parseFloat(product.quantity);
-            aggregatedStock[product.msp].totalAmount += parseFloat(product.amount);
+            aggregatedStock[product.msp].quantity += quantity;
+            aggregatedStock[product.msp].totalAmount += amount;
         }
     });
 
+    // FIX: Tính giá trung bình an toàn
     Object.values(aggregatedStock).forEach(product => {
         if (product.quantity > 0 && product.category === 'hang_hoa') {
             product.avgPrice = Math.abs(product.totalAmount) / product.quantity;
@@ -139,9 +218,16 @@ function showEditStockModal(msp) {
 }
 
 /**
- * XỬ LÝ LOGIC ĐIỀU CHỈNH TỒN KHO & LIÊN KẾT KẾ TOÁN
+ * XỬ LÝ LOGIC ĐIỀU CHỈNH TỒN KHO & LIÊN KẾT KẾ TOÁN - ĐÃ TỐI ƯU
  */
 function processStockAdjustment(product, newQuantity, newUnitPrice, reason, date) {
+    // VALIDATION: Kiểm tra dữ liệu đầu vào
+    const validation = validateStockAdjustment(product, newQuantity, newUnitPrice, reason, date);
+    if (!validation.isValid) {
+        alert('Lỗi validation:\n' + validation.errors.join('\n'));
+        return;
+    }
+
     const hkd = hkdData[window.currentCompany];
     
     const currentQuantity = product.quantity;
@@ -158,18 +244,18 @@ function processStockAdjustment(product, newQuantity, newUnitPrice, reason, date
     }
 
     const adjustmentEntry = {
-        id: `ADJ_${Date.now()}`, 
+        id: `ADJ_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // FIX: Thêm random tránh trùng ID
         type: 'ADJUSTMENT',
         date: date,
-        description: `Điều chỉnh tồn kho: ${reason}`,
+        description: `Điều chỉnh tồn kho: ${reason.trim()}`,
         msp: product.msp,
         name: product.name,
         unit: product.unit,
         category: product.category,
-        
         quantity: quantityDifference, 
         amount: amountDifference,
-        price: newUnitPrice 
+        price: newUnitPrice,
+        timestamp: new Date().toISOString() // FIX: Thêm timestamp để tracking
     };
     
     hkd.tonkhoMain.push(adjustmentEntry);
@@ -185,13 +271,36 @@ function processStockAdjustment(product, newQuantity, newUnitPrice, reason, date
     
     renderStock();
     window.saveAccountingData(); 
-    alert(`Đã ghi nhận điều chỉnh cho ${product.msp}: Số lượng thay đổi ${quantityDifference.toFixed(2)}, Giá trị thay đổi ${formatCurrency(amountDifference)}.`);
+    
+    // FIX: Thông báo chi tiết hơn
+    const message = `Đã ghi nhận điều chỉnh cho ${product.msp}:\n` +
+                   `- Số lượng thay đổi: ${quantityDifference > 0 ? '+' : ''}${quantityDifference.toFixed(2)}\n` +
+                   `- Giá trị thay đổi: ${amountDifference > 0 ? '+' : ''}${formatCurrency(amountDifference)}\n` +
+                   `- Lý do: ${reason.trim()}`;
+    alert(message);
 }
 
 // File: tonkho.js
+/**
+ * Hàm debounce để tối ưu hiệu năng tìm kiếm - MỚI
+ */
+function debouncedRenderStock() {
+    let timeoutId;
+    
+    return function(searchTerm = '', filterType = 'all') {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            renderStock(searchTerm, filterType);
+        }, 300); // Delay 300ms
+    };
+}
+
+// Tạo instance debounce
+const debouncedRender = debouncedRenderStock();
+// File: tonkho.js
 
 /**
- * XEM CHI TIẾT THẺ KHO (STOCK CARD) - ĐÃ LOẠI BỎ ID DÒNG
+ * XEM CHI TIẾT THẺ KHO (STOCK CARD) - ĐÃ TỐI ƯU VỚI safeFormatDate
  */
 function showStockDetail(msp) {
     if (!window.currentCompany) return;
@@ -235,11 +344,10 @@ function showStockDetail(msp) {
                 date: invDate, 
                 type: 'NHẬP',
                 reference: `HD ${invRef}`, 
-                quantity: parseFloat(item.quantity),
+                quantity: parseFloat(item.quantity) || 0,
                 unitPrice: unitPrice,
-                amount: item.amount,
+                amount: parseFloat(item.amount) || 0,
                 source: 'hoadon'
-                // LOẠI BỎ: lineId: item.lineId || 'N/A' 
             });
         });
     });
@@ -251,9 +359,9 @@ function showStockDetail(msp) {
                 date: exp.date || new Date().toISOString().substring(0, 10),
                 type: 'XUẤT',
                 reference: `PX ${item.id || exp.id || 'N/A'}`,
-                quantity: -parseFloat(item.quantity), 
-                unitPrice: item.price, 
-                amount: -item.amount, 
+                quantity: -(parseFloat(item.quantity) || 0), 
+                unitPrice: parseFloat(item.price) || 0, 
+                amount: -(parseFloat(item.amount) || 0), 
                 source: 'xuathang'
             });
         });
@@ -265,9 +373,9 @@ function showStockDetail(msp) {
             date: adj.date || new Date().toISOString().substring(0, 10),
             type: 'ĐIỀU CHỈNH',
             reference: adj.description || adj.id,
-            quantity: adj.quantity,
-            unitPrice: adj.price, 
-            amount: adj.amount,
+            quantity: parseFloat(adj.quantity) || 0,
+            unitPrice: parseFloat(adj.price) || 0, 
+            amount: parseFloat(adj.amount) || 0,
             source: 'tonkho'
         });
     });
@@ -275,9 +383,12 @@ function showStockDetail(msp) {
     // Sắp xếp theo ngày
     transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // Bảng chi tiết
+    // Bảng chi tiết - SỬA: sử dụng safeFormatDate
     let detailHtml = `
         <h5 style="margin-bottom: 15px;">Thẻ Kho (Stock Card) - MSP: ${msp}</h5>
+        <div style="margin-bottom: 15px; font-size: 14px; color: #666;">
+            Tổng số giao dịch: ${transactions.length}
+        </div>
         <table class="table report-table">
             <thead>
                 <tr>
@@ -299,8 +410,8 @@ function showStockDetail(msp) {
     let runningAmount = 0;
 
     transactions.forEach(tx => {
-        const dateDisplay = window.formatDate ? window.formatDate(tx.date) : new Date(tx.date).toLocaleDateString('vi-VN');
-        const displayDate = dateDisplay.includes('2000') ? 'N/A' : dateDisplay;
+        // FIX: Sử dụng safeFormatDate thay vì format trực tiếp
+        const displayDate = safeFormatDate(tx.date);
 
         const quantityIn = tx.quantity > 0 && tx.type !== 'XUẤT' ? tx.quantity : 0;
         const quantityOut = tx.quantity < 0 || tx.type === 'XUẤT' ? Math.abs(tx.quantity) : 0;
@@ -324,23 +435,31 @@ function showStockDetail(msp) {
         `;
     });
 
+    // Thêm dòng tổng kết
     detailHtml += `
             </tbody>
+            <tfoot>
+                <tr style="background-color: #f8f9fa;">
+                    <td colspan="3"><strong>TỔNG KẾT</strong></td>
+                    <td style="text-align: right;"><strong>${transactions.filter(t => t.quantity > 0 && t.type !== 'XUẤT').reduce((sum, t) => sum + t.quantity, 0).toLocaleString('vi-VN')}</strong></td>
+                    <td style="text-align: right;"><strong>${transactions.filter(t => t.quantity < 0 || t.type === 'XUẤT').reduce((sum, t) => sum + Math.abs(t.quantity), 0).toLocaleString('vi-VN')}</strong></td>
+                    <td colspan="2"></td>
+                    <td style="text-align: right;"><strong>${runningQuantity.toLocaleString('vi-VN')}</strong></td>
+                    <td style="text-align: right;"><strong>${formatCurrency(runningAmount)}</strong></td>
+                </tr>
+            </tfoot>
         </table>
     `;
 
     window.showModal(`Chi Tiết Tồn Kho: ${msp}`, detailHtml, 'modal-lg');
 }
 
-// =======================================================
-// CORE RENDER FUNCTIONS (Giữ nguyên)
-// =======================================================
-
 function initStockModule() {
     const searchInput = document.getElementById('search-stock');
     if (searchInput) {
         searchInput.addEventListener('input', function(e) {
-            renderStock(e.target.value);
+            // SỬA: Sử dụng debounce để tối ưu hiệu năng
+            debouncedRender(e.target.value);
         });
     }
 
