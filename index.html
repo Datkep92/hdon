@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hệ Thống CasNa</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -36,76 +37,133 @@
             </div>
         </div>
         
-        <!-- Menu ngang 7 tab -->
-        <!-- Menu ngang 7 tab - GIỮ NGUYÊN THỨ TỰ KHI CUỘN -->
-<div class="nav-tabs">
-    <div class="nav-tab" data-tab="xu-ly-hoa-don-loi">Xử Lý Hóa Đơn</div>
-    <div class="nav-tab" data-tab="mua-hang">Mua Hàng</div>
-    <div class="nav-tab" data-tab="kho-hang">Kho Hàng</div>
-    <div class="nav-tab" data-tab="ban-hang">Bán Hàng</div>
-    <div class="nav-tab" data-tab="tien-cong-no">Tiền & Công Nợ</div>
-    <div class="nav-tab" data-tab="thue-bao-cao">Thuế & Báo Cáo</div>
-    <div class="nav-tab" data-tab="so-sach">Sổ Sách</div>
-    <div class="nav-tab" data-tab="so-du-dau-ky">Số Dư Đầu Kỳ</div>
-</div>
+        <!-- Menu ngang 8 tab (thêm tab Convert) -->
+        <div class="nav-tabs">
+            <div class="nav-tab" data-tab="xu-ly-hoa-don-loi">Xử Lý Hóa Đơn</div>
+            <div class="nav-tab" data-tab="mua-hang">Mua Hàng</div>
+            <div class="nav-tab" data-tab="kho-hang">Kho Hàng</div>
+            <div class="nav-tab" data-tab="ban-hang">Bán Hàng</div>
+            <div class="nav-tab" data-tab="tien-cong-no">Tiền & Công Nợ</div>
+            <div class="nav-tab" data-tab="thue-bao-cao">Thuế & Báo Cáo</div>
+            <div class="nav-tab" data-tab="so-sach">Sổ Sách</div>
+            <div class="nav-tab" data-tab="so-du-dau-ky">Số Dư Đầu Kỳ</div>
+            <div class="nav-tab" data-tab="convert">Convert</div>
+        </div>
+        
         <!-- Thêm nội dung tab -->
-<div class="tab-content" id="xu-ly-hoa-don-loi">
-    
-    <div class="content-body">
-        <div class="card">
-            <div class="card-header">📊 Thống Kê Hóa Đơn Lỗi</div>
-            <div id="error-invoice-stats">
-                <!-- Thống kê sẽ được render ở đây -->
+        <div class="tab-content" id="xu-ly-hoa-don-loi">
+            <!-- Nội dung tab Xử Lý Hóa Đơn Lỗi (giữ nguyên) -->
+            <div class="content-body">
+                <div class="card">
+                    <div class="card-header">📊 Thống Kê Hóa Đơn Lỗi</div>
+                    <div id="error-invoice-stats">
+                        <!-- Thống kê sẽ được render ở đây -->
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">🔍 Danh Sách Hóa Đơn Cần Sửa</div>
+                    <div class="form-group">
+                        <input type="text" id="search-error-invoices" placeholder="Tìm kiếm hóa đơn lỗi...">
+                    </div>
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>Số HĐ</th>
+                                <th>Ngày</th>
+                                <th>Nhà cung cấp</th>
+                                <th>MST NCC</th>
+                                <th>Tổng tiền</th>
+                                <th>Chênh lệch</th>
+                                <th>Trạng thái</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="error-invoice-list">
+                            <tr><td colspan="9" style="text-align: center;">Chưa có hóa đơn lỗi</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">📈 Hóa Đơn Đã Xử Lý</div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Số HĐ</th>
+                                <th>Ngày sửa</th>
+                                <th>Người sửa</th>
+                                <th>Chênh lệch trước/sau</th>
+                                <th>Kết quả</th>
+                            </tr>
+                        </thead>
+                        <tbody id="processed-invoice-list">
+                            <tr><td colspan="5" style="text-align: center;">Chưa có hóa đơn đã xử lý</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
         
-        <div class="card">
-            <div class="card-header">🔍 Danh Sách Hóa Đơn Cần Sửa</div>
-            <div class="form-group">
-                <input type="text" id="search-error-invoices" placeholder="Tìm kiếm hóa đơn lỗi...">
-            </div>
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>STT</th>
-                        <th>Số HĐ</th>
-                        <th>Ngày</th>
-                        <th>Nhà cung cấp</th>
-                        <th>MST NCC</th>
-                        <th>Tổng tiền</th>
-                        <th>Chênh lệch</th>
-                        <th>Trạng thái</th>
-                        <th>Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody id="error-invoice-list">
-                    <tr><td colspan="9" style="text-align: center;">Chưa có hóa đơn lỗi</td></tr>
-                </tbody>
-            </table>
+        <!-- Tab Convert (mới thêm) -->
+        <div class="tab-content" id="convert">
+            <div class="content-body">
+    <div class="card">
+        <div class="card-header">
+            <h3>Chuyển đổi VNPT sang MISA</h3>
+            <p class="subtitle">Upload file VNPT và file mã hàng MISA để chuyển đổi tự động</p>
         </div>
         
-        <div class="card">
-            <div class="card-header">📈 Hóa Đơn Đã Xử Lý</div>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Số HĐ</th>
-                        <th>Ngày sửa</th>
-                        <th>Người sửa</th>
-                        <th>Chênh lệch trước/sau</th>
-                        <th>Kết quả</th>
-                    </tr>
-                </thead>
-                <tbody id="processed-invoice-list">
-                    <tr><td colspan="5" style="text-align: center;">Chưa có hóa đơn đã xử lý</td></tr>
-                </tbody>
-            </table>
+        <!-- NÚT TẢI FILE MẪU -->
+        <div class="section" style="background: #e8f5e8; border-left: 4px solid #28a745;">
+            <h4>📥 TẢI FILE MẪU</h4>
+            <p><strong>Download file MÃ Hang - Tên Hàng:</strong></p>
+            <button onclick="downloadMISASample()" class="btn" style="background: #28a745; color: white;">
+                ⬇️ Tải File
+            </button>
+            <p style="margin-top: 10px; font-size: 0.5em; color: #666;">
+                File mẫu có 2 cột: <strong>Mã hàng</strong> và <strong>Tên hàng</strong>
+            </p>
+        </div>
+        
+        <!-- BƯỚC 1: UPLOAD FILE VNPT -->
+        <div class="section">
+            <h4>1. Upload file VNPT</h4>
+            <p><strong>Định dạng:</strong> File Excel VNPT xuất từ hệ thống</p>
+            <input type="file" id="vnptFile" class="file-input" accept=".xlsx, .xls">
+            <div id="vnptPreview" class="preview">Chưa có file VNPT nào được chọn</div>
+        </div>
+        
+        <!-- BƯỚC 2: UPLOAD FILE MAPPING MISA -->
+        <div class="section">
+            <h4>2. Upload file mã hàng MISA</h4>
+            <p><strong>Định dạng:</strong> File Excel có 2 cột "Mã hàng" và "Tên hàng"</p>
+            <input type="file" id="misaMappingFile" class="file-input" accept=".xlsx, .xls">
+            <div id="mappingStatus" class="status info">Chưa có file MISA nào được chọn</div>
+            <div id="mappingPreview" class="preview">Danh sách mã hàng sẽ hiển thị ở đây</div>
+        </div>
+        
+        <!-- BƯỚC 3: XỬ LÝ -->
+        <div class="actions">
+            <button id="processBtn" class="btn" disabled>Xử lý chuyển đổi</button>
+            <button id="downloadBtn" class="btn btn-success" disabled>Tải file MISA</button>
+        </div>
+        
+        <!-- BƯỚC 4: KẾT QUẢ -->
+        <div class="result-section">
+            <h4>Kết quả chuyển đổi</h4>
+            <div id="processResult" class="status info">Chưa xử lý</div>
+            <div id="resultSummary"></div>
+            <div id="newProductsList"></div>
         </div>
     </div>
 </div>
-        <!-- Tab Số Dư Đầu Kỳ -->
+        </div>
+        
+        <!-- Các tab khác giữ nguyên -->
         <div class="tab-content active" id="so-du-dau-ky">
-            
+            <!-- Nội dung tab Số Dư Đầu Kỳ (giữ nguyên) -->
             <div class="content-body">
                 <div class="card">
                     <div class="card-header">Nhập Số Dư Đầu Kỳ</div>
@@ -790,7 +848,7 @@
 
     </div>
 
-    <!-- Modal container -->
+     <!-- Modal container -->
     <div id="custom-modal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
@@ -817,5 +875,6 @@
     <script src="thuebaocao.js"></script>
     <script src="sosach.js"></script>
     <script src="app.js"></script>
+    <script src="conver.js"></script>
 </body>
 </html>
