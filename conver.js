@@ -363,7 +363,7 @@ function calculateMatchScore(vnptName, misaName, vnptRow, misaProduct) {
                 .map(word => word.trim());
         }
 
-// CẬP NHẬT HÀM ĐỌC FILE VNPT
+// XỬ LÝ UPLOAD FILE (CẢ VNPT VÀ VIETTEL)
 document.getElementById('vnptFile').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -373,60 +373,36 @@ document.getElementById('vnptFile').addEventListener('change', function(e) {
         try {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
             
-            // Chuyển đổi từ mảng 2D sang object với key là cột
-            const jsonData = convertArrayToObject(rawData);
+            // PHÂN LOẠI VÀ XỬ LÝ FILE
+            vnptData = classifyAndProcessFile(data, workbook);
             
-            // Phân tích file VNPT với hàm mới
-            vnptData = parseVNPTFileData(jsonData);
+            // HIỂN THỊ KẾT QUẢ PHÂN LOẠI
+            const fileType = vnptData.length > 0 ? vnptData[0].FileType || 'VNPT' : 'VNPT';
             
             document.getElementById('vnptPreview').innerHTML = 
-                `<div class="success">✅ Đã tải ${vnptData.length} bản ghi từ file VNPT</div>
+                `<div class="success">✅ Đã tải ${vnptData.length} bản ghi từ file ${fileType}</div>
                  <div class="info" style="margin-top: 10px;">
                     <strong>Mẫu dữ liệu:</strong><br>
                     ${vnptData.slice(0, 3).map(row => 
                         `HD ${row.SoHoaDon}: ${row.MatHang} - SL: ${row.SoLuong}`
                     ).join('<br>')}
+                 </div>
+                 <div class="warning" style="margin-top: 5px;">
+                    📁 Loại file: ${fileType}
                  </div>`;
             
             checkProcessReady();
         } catch (error) {
-            console.error('Lỗi đọc file VNPT:', error);
+            console.error('Lỗi đọc file:', error);
             document.getElementById('vnptPreview').innerHTML = 
-                `<div class="error">❌ Lỗi đọc file VNPT: ${error.message}</div>`;
+                `<div class="error">❌ Lỗi đọc file: ${error.message}</div>`;
         }
     };
     reader.readAsArrayBuffer(file);
 });
 
-// HÀM CHUYỂN ĐỔI MẢNG 2D SANG OBJECT
-function convertArrayToObject(arrayData) {
-    if (!arrayData || arrayData.length < 2) return [];
-    
-    const headers = arrayData[0];
-    const result = [];
-    
-    for (let i = 1; i < arrayData.length; i++) {
-        const row = arrayData[i];
-        const obj = {};
-        
-        for (let j = 0; j < headers.length; j++) {
-            if (headers[j] && row[j] !== undefined) {
-                obj[headers[j]] = row[j];
-            } else {
-                // Tạo key cho các cột empty (__EMPTY, __EMPTY_1, ...)
-                const emptyKey = `__EMPTY${j > 0 ? `_${j}` : ''}`;
-                obj[emptyKey] = row[j];
-            }
-        }
-        
-        result.push(obj);
-    }
-    
-    return result;
-}
+
 function parseVNPTFileData(jsonData) {
     const realData = [];
     
@@ -436,6 +412,22 @@ function parseVNPTFileData(jsonData) {
     let currentTaxRate = '8'; // Mặc định 8%
     let inDataSection = false;
     let consecutiveEmpty = 0;
+    
+    // HÀM CHUYỂN ĐỔI SỐ AN TOÀN CHO VNPT
+    const safeParseNumber = (value) => {
+        if (!value) return 0;
+        if (typeof value === 'number') return value;
+        
+        const strValue = value.toString().trim();
+        
+        // Loại bỏ dấu phân cách hàng nghìn, giữ nguyên dấu thập phân
+        const cleanValue = strValue
+            .replace(/\./g, '') // Loại bỏ dấu chấm phân cách hàng nghìn (1.000 -> 1000)
+            .replace(/,/g, '.'); // Chuyển dấu phẩy thập phân thành chấm (0,5 -> 0.5)
+        
+        const numValue = parseFloat(cleanValue);
+        return isNaN(numValue) ? 0 : numValue;
+    };
     
     for (let i = 0; i < jsonData.length; i++) {
         const row = jsonData[i];
@@ -485,7 +477,13 @@ function parseVNPTFileData(jsonData) {
                 console.log(`✅ PHÁT HIỆN DÒNG DỮ LIỆU tại dòng ${i} - Thuế ${currentTaxRate}%`);
                 consecutiveEmpty = 0;
                 
-                // Map dòng dữ liệu với thuế suất hiện tại
+                // Lấy giá trị gốc để debug
+                const rawSoLuong = row['__EMPTY_10'] || row['Số lượng'] || 0;
+                const rawDonGia = row['__EMPTY_11'] || row['Đơn giá'] || 0;
+                const rawDoanhSo = row['__EMPTY_12'] || row['Doanh số bán chưa có thuế'] || 0;
+                const rawThueGTGT = row['__EMPTY_13'] || row['Thuế GTGT'] || 0;
+                
+                // Map dòng dữ liệu với thuế suất hiện tại - SỬ DỤNG HÀM CHUYỂN ĐỔI SỐ AN TOÀN
                 const mappedRow = {
                     // STT
                     'STT': row['__EMPTY'] || row['STT'] || row['__EMPTY_1'],
@@ -503,19 +501,31 @@ function parseVNPTFileData(jsonData) {
                     'MST': row['__EMPTY_8'] || row['Mã số thuế người mua'],
                     // Mặt Hàng
                     'MatHang': row['__EMPTY_9'] || row['Mặt Hàng'],
-                    // Số lượng
-                    'SoLuong': parseFloat(row['__EMPTY_10'] || row['Số lượng'] || 0),
-                    // Đơn giá
-                    'DonGia': parseFloat(row['__EMPTY_11'] || row['Đơn giá'] || 0),
-                    // Doanh số bán chưa có thuế
-                    'DoanhSo': parseFloat(row['__EMPTY_12'] || row['Doanh số bán chưa có thuế'] || 0),
-                    // Thuế GTGT
-                    'ThueGTGT': parseFloat(row['__EMPTY_13'] || row['Thuế GTGT'] || 0),
+                    // Số lượng - SỬ DỤNG HÀM CHUYỂN ĐỔI SỐ AN TOÀN
+                    'SoLuong': safeParseNumber(rawSoLuong),
+                    // Đơn giá - SỬ DỤNG HÀM CHUYỂN ĐỔI SỐ AN TOÀN
+                    'DonGia': safeParseNumber(rawDonGia),
+                    // Doanh số bán chưa có thuế - SỬ DỤNG HÀM CHUYỂN ĐỔI SỐ AN TOÀN
+                    'DoanhSo': safeParseNumber(rawDoanhSo),
+                    // Thuế GTGT - SỬ DỤNG HÀM CHUYỂN ĐỔI SỐ AN TOÀN
+                    'ThueGTGT': safeParseNumber(rawThueGTGT),
                     // Ghi chú
                     'GhiChu': row['__EMPTY_14'] || row['Ghi chú'] || '',
                     // Thuế suất đã xác định
-                    'TaxRate': currentTaxRate
+                    'TaxRate': currentTaxRate,
+                    // Lưu giá trị gốc để debug
+                    '_OriginalValues': {
+                        'SoLuong': rawSoLuong,
+                        'DonGia': rawDonGia,
+                        'DoanhSo': rawDoanhSo,
+                        'ThueGTGT': rawThueGTGT
+                    }
                 };
+                
+                // DEBUG: Kiểm tra chuyển đổi số
+                if (rawDoanhSo && rawDoanhSo.toString() !== mappedRow.DoanhSo.toString()) {
+                    console.log(`🔢 VNPT - Chuyển đổi số: "${rawDoanhSo}" -> ${mappedRow.DoanhSo}`);
+                }
                 
                 if (mappedRow.SoHoaDon && mappedRow.MatHang) {
                     realData.push(mappedRow);
@@ -541,9 +551,20 @@ function parseVNPTFileData(jsonData) {
     }
     
     console.log(`✅ Đã trích xuất ${realData.length} bản ghi hợp lệ`);
+    
+    // DEBUG số liệu VNPT
+    if (realData.length > 0) {
+        console.log('🔢 DEBUG SỐ LIỆU VNPT:');
+        realData.slice(0, 3).forEach((row, index) => {
+            console.log(`Dòng ${index + 1}:`);
+            console.log(`  - Đơn giá: "${row._OriginalValues.DonGia}" -> ${row.DonGia}`);
+            console.log(`  - Doanh số: "${row._OriginalValues.DoanhSo}" -> ${row.DoanhSo}`);
+            console.log(`  - Thuế GTGT: "${row._OriginalValues.ThueGTGT}" -> ${row.ThueGTGT}`);
+        });
+    }
+    
     return realData;
-}
-// HÀM MAP DÒNG DỮ LIỆU VNPT VỚI THUẾ SUẤT
+}// HÀM MAP DÒNG DỮ LIỆU VNPT VỚI THUẾ SUẤT
 function mapVNPTDataRow(rowValues, taxRate) {
     console.log('🔍 Mapping dòng dữ liệu với thuế suất:', taxRate, rowValues);
     
@@ -633,94 +654,97 @@ function mapVNPTDataRow(rowValues, taxRate) {
     console.log('✅ Dòng mapped:', mappedRow);
     return mappedRow;
 }
-
-// CẬP NHẬT HÀM CHUYỂN ĐỔI CHÍNH - DÙNG THUẾ SUẤT ĐÃ XÁC ĐỊNH
+// CẬP NHẬT HÀM CHUYỂN ĐỔI - SỬ DỤNG THUẾ SUẤT TỪ VIETTEL
+// CẬP NHẬT HÀM CHUYỂN ĐỔI - GIỮ NGUYÊN SỐ LIỆU TỪ FILE + THÊM MÃ KHÁCH HÀNG
 function convertVNPTtoMISA(vnptData, misaProducts) {
     const result = [];
     const newProducts = [];
     const usedMappings = new Set();
     
-    console.log('🔍 Bắt đầu xử lý với thuế suất đã xác định');
+    // BIẾN ĐỂ THEO DÕI MÃ KHÁCH HÀNG
+    const customerCodeMap = new Map();
+    const customerCodeCounter = new Set();
+    
+    console.log('🔍 Bắt đầu chuyển đổi - Giữ nguyên số liệu từ file + Tạo mã KH');
     
     vnptData.forEach((vnptRow, index) => {
         const misaRow = {};
+        const fileType = vnptRow['FileType'] || 'VNPT';
         
-        // === SỬ DỤNG THUẾ SUẤT ĐÃ XÁC ĐỊNH TỪ VIỆC QUÉT FILE ===
+        // SỬ DỤNG SỐ LIỆU CHÍNH XÁC TỪ FILE
         const phanTramThueGTGT = vnptRow['TaxRate'] || '8';
+        const donGia = vnptRow['DonGia'] || 0;
+        const thueGTGT = vnptRow['ThueGTGT'] || 0;
+        const soLuong = vnptRow['SoLuong'] || 0;
+        const doanhSo = vnptRow['DoanhSo'] || 0;
+        const tenKhachHang = vnptRow['TenNguoiMua'] || 'Khách hàng';
         
-        // Lấy các giá trị gốc từ VNPT
-        const donGia = parseFloat(vnptRow['DonGia']) || 0;
-        const thueGTGT = parseFloat(vnptRow['ThueGTGT']) || 0;
-        const soLuong = parseFloat(vnptRow['SoLuong']) || 0;
-        const doanhSo = parseFloat(vnptRow['DoanhSo']) || 0;
+        console.log(`📊 Dòng ${index + 1}: SL=${soLuong}, ĐG=${donGia}, DS=${doanhSo}, Thuế=${thueGTGT}`);
         
-        console.log(`💰 Dòng ${index + 1}: Sử dụng thuế suất = ${phanTramThueGTGT}% (đã xác định từ file)`);
+        // === TẠO MÃ KHÁCH HÀNG ===
+        let maKhachHang = '';
+        if (customerCodeMap.has(tenKhachHang)) {
+            // Dùng mã đã tạo trước đó
+            maKhachHang = customerCodeMap.get(tenKhachHang);
+        } else {
+            // Tạo mã mới
+            maKhachHang = generateCustomerCode(tenKhachHang, customerCodeCounter);
+            customerCodeMap.set(tenKhachHang, maKhachHang);
+            console.log(`👤 Tạo mã KH: "${tenKhachHang}" -> ${maKhachHang}`);
+        }
         
-        // === ÁNH XẠ CÁC CỘT MISA ===
-        // 1. Cột đầu tiên
-        misaRow['Hiển thị trên sổ'] = '';
-        misaRow['Hình thức bán hàng'] = '';
-        misaRow['Phương thức thanh toán'] = '';
-        misaRow['Kiêm phiếu xuất kho'] = '';
-        misaRow['XK vào khu phi thuế quan và các TH được coi như XK'] = '';
-        misaRow['Lập kèm hóa đơn'] = '';
-        misaRow['Đã lập hóa đơn'] = '';
+        // === ÁNH XẠ CÁC CỘT MISA - GIỮ NGUYÊN SỐ LIỆU ===
         misaRow['Ngày hạch toán (*)'] = formatDateForMISA(vnptRow['NgayHoaDon']);
         misaRow['Ngày chứng từ (*)'] = formatDateForMISA(vnptRow['NgayHoaDon']);
         misaRow['Số chứng từ (*)'] = vnptRow['SoHoaDon'];
         misaRow['Số phiếu xuất'] = vnptRow['SoHoaDon'];
-        misaRow['Lý do xuất'] = '';
         misaRow['Số hóa đơn'] = vnptRow['SoHoaDon'];
         misaRow['Ngày hóa đơn'] = formatDateForMISA(vnptRow['NgayHoaDon']);
-        misaRow['Mã khách hàng'] = '';
-        misaRow['Tên khách hàng'] = vnptRow['TenNguoiMua'];
-        misaRow['Địa chỉ'] = '';
+        misaRow['Mã khách hàng'] = maKhachHang; // THÊM MÃ KHÁCH HÀNG
+        misaRow['Tên khách hàng'] = tenKhachHang;
         misaRow['Mã số thuế'] = vnptRow['MST'] || '';
-        misaRow['Diễn giải'] = `Bán cho ${vnptRow['TenNguoiMua']}`;
-        misaRow['Nộp vào TK'] = '';
-        misaRow['NV bán hàng'] = '';
+        misaRow['Diễn giải'] = `Bán cho ${tenKhachHang}`;
         
-        // 2. Cột sản phẩm
+        // Ánh xạ sản phẩm
         const productInfo = mapProductWithCustomMapping(vnptRow['MatHang'], misaProducts, vnptRow);
         misaRow['Mã hàng (*)'] = productInfo.code;
         misaRow['Tên hàng'] = productInfo.name;
-        misaRow['Hàng khuyến mại'] = '';
         misaRow['TK Tiền/Chi phí/Nợ (*)'] = '131';
         misaRow['TK Doanh thu/Có (*)'] = '5111';
         misaRow['ĐVT'] = 'cái';
-        misaRow['Số lượng'] = soLuong;
+        misaRow['Số lượng'] = soLuong; // Giữ nguyên từ file
         
-        // Tính đơn giá sau thuế
-        const donGiaSauThue = donGia * (1 + parseFloat(phanTramThueGTGT)/100);
-        misaRow['Đơn giá sau thuế'] = donGiaSauThue.toFixed(2);
-        misaRow['Đơn giá'] = donGia;
-        misaRow['Thành tiền'] = doanhSo > 0 ? doanhSo : (donGia * soLuong);
+        // GIỮ NGUYÊN GIÁ TRỊ TỪ FILE - KHÔNG TÍNH TOÁN
+        misaRow['Đơn giá sau thuế'] = donGia; // Giữ nguyên đơn giá từ file
+        misaRow['Đơn giá'] = donGia; // Giữ nguyên đơn giá từ file
+        misaRow['Thành tiền'] = doanhSo; // Giữ nguyên doanh số từ file
         
-        // 3. Cột chiết khấu
-        misaRow['Tỷ lệ CK (%)'] = '';
-        misaRow['Tiền chiết khấu'] = '';
-        misaRow['TK chiết khấu'] = '';
-        misaRow['Giá tính thuế XK'] = '';
-        misaRow['% thuế XK'] = '';
-        misaRow['Tiền thuế XK'] = '';
-        misaRow['TK thuế XK'] = '';
-        
-        // 4. Cột thuế - SỬ DỤNG THUẾ SUẤT ĐÃ XÁC ĐỊNH
+        // THUẾ - GIỮ NGUYÊN TỪ FILE
         misaRow['% thuế GTGT'] = phanTramThueGTGT;
-        misaRow['Tỷ lệ tính thuế (Thuế suất KHAC)'] = '';
-        misaRow['Tiền thuế GTGT'] = thueGTGT;
+        misaRow['Tiền thuế GTGT'] = thueGTGT; // Giữ nguyên từ file
         misaRow['TK thuế GTGT'] = '33311';
-        misaRow['HH không TH trên tờ khai thuế GTGT'] = '';
         
-        // 5. Cột cuối
+        // Các cột khác
         misaRow['Kho'] = 'KHO1';
         misaRow['TK giá vốn'] = '632';
         misaRow['TK Kho'] = '156';
-        misaRow['Đơn giá vốn'] = '';
-        misaRow['Tiền vốn'] = '';
-        misaRow['Hàng hóa giữ hộ/bán hộ'] = '';
         
-        // Theo dõi sản phẩm mới
+        // Các cột mặc định (LOẠI BỎ 'Mã khách hàng' VÌ ĐÃ ĐƯỢC THÊM Ở TRÊN)
+        const defaultColumns = [
+            'Hiển thị trên sổ', 'Hình thức bán hàng', 'Phương thức thanh toán',
+            'Kiêm phiếu xuất kho', 'XK vào khu phi thuế quan và các TH được coi như XK',
+            'Lập kèm hóa đơn', 'Đã lập hóa đơn', 'Lý do xuất', 'Địa chỉ',
+            'Nộp vào TK', 'NV bán hàng', 'Hàng khuyến mại', 'Tỷ lệ CK (%)', 'Tiền chiết khấu',
+            'TK chiết khấu', 'Giá tính thuế XK', '% thuế XK', 'Tiền thuế XK', 'TK thuế XK',
+            'Tỷ lệ tính thuế (Thuế suất KHAC)', 'HH không TH trên tờ khai thuế GTGT',
+            'Đơn giá vốn', 'Tiền vốn', 'Hàng hóa giữ hộ/bán hộ'
+        ];
+        
+        defaultColumns.forEach(col => {
+            misaRow[col] = '';
+        });
+        
+        // Theo dõi sản phẩm
         if (productInfo.isNew) {
             newProducts.push(productInfo);
         } else {
@@ -730,55 +754,146 @@ function convertVNPTtoMISA(vnptData, misaProducts) {
         result.push(misaRow);
     });
     
+    // HIỂN THỊ DANH SÁCH MÃ KHÁCH HÀNG ĐÃ TẠO
+    console.log('📋 Danh sách mã khách hàng đã tạo:');
+    customerCodeMap.forEach((code, name) => {
+        console.log(`- ${code}: ${name}`);
+    });
+    
     return {
         data: result,
         newProducts: newProducts,
         usedMappings: Array.from(usedMappings),
+        customerCodes: Array.from(customerCodeMap.entries()),
         summary: {
             totalRecords: result.length,
             mappedProducts: usedMappings.size,
-            newProducts: newProducts.length
+            newProducts: newProducts.length,
+            totalCustomers: customerCodeMap.size
         }
     };
 }
-// HÀM TẢI FILE MẪU MISA ĐƠN GIẢN
-function downloadMISASample() {
-    // Tạo workbook Excel
-    const wb = XLSX.utils.book_new();
+function debugViettelFileStructure(jsonData) {
+    console.log('🔍 DEBUG CHI TIẾT FILE VIETTEL:');
     
-    // Dữ liệu mẫu - chỉ 2 cột: Mã hàng và Tên hàng
-    const misaSampleData = [
-        ['Mã hàng', 'Tên hàng'],
-        ['SPRITE', 'Sprite lon'],
-        ['NCCma', 'Nước suối Lemona'],
-        ['STINGD', 'Sting Dâu tây đỏ Lon 520x24 Tray Lốc 8'],
-        ['AQUA', 'Nước suối Aquafina 500ml'],
-        ['COCA', 'Coca Cola lon 330ml'],
-        ['PEPSI', 'Pepsi chai 1.5L'],
-        ['TIGER', 'Bia Tiger lon 330ml'],
-        ['HEINE', 'Bia Heineken chai 330ml'],
-        ['REDBULL', 'Red Bull 250ml'],
-        ['TWISTER', 'Nước ép trái cây Twister 1L']
-    ];
-    
-    // Tạo worksheet
-    const ws = XLSX.utils.aoa_to_sheet(misaSampleData);
-    
-    // Đặt độ rộng cột cho đẹp
-    ws['!cols'] = [
-        { wch: 15 },  // Mã hàng
-        { wch: 40 }   // Tên hàng
-    ];
-    
-    // Thêm worksheet vào workbook
-    XLSX.utils.book_append_sheet(wb, ws, 'DanhMucHangHoa');
-    
-    // Tải file về
-    XLSX.writeFile(wb, 'MAU_FILE_MISA.xlsx');
-    
-    // Thông báo
-    alert('✅ Đã tải file MISA mẫu thành công!');
+    // Hiển thị 10 dòng đầu với đầy đủ thông tin
+    for (let i = 0; i < Math.min(10, jsonData.length); i++) {
+        const row = jsonData[i];
+        console.log(`--- Dòng ${i} ---`);
+        console.log('Tất cả keys:', Object.keys(row));
+        console.log('Tất cả values:', Object.values(row));
+        
+        // Tìm các cột quan trọng
+        const importantColumns = {};
+        Object.keys(row).forEach(key => {
+            if (key.includes('Số hóa đơn') || key.includes('Tên hàng') || 
+                key.includes('Số lượng') || key.includes('Đơn giá')) {
+                importantColumns[key] = row[key];
+            }
+        });
+        console.log('Cột quan trọng:', importantColumns);
+    }
 }
+
+
+// HÀM TÌM GIÁ TRỊ THEO PATTERN KEY
+function findValueByKeyPattern(row, patterns) {
+    for (const pattern of patterns) {
+        for (const key in row) {
+            if (key.includes(pattern)) {
+                return row[key];
+            }
+        }
+    }
+    return null;
+}
+
+// HÀM PARSE ALTERNATIVE - CHO FILE CÓ CẤU TRÚC KHÁC
+function parseViettelAlternative(jsonData) {
+    const realData = [];
+    console.log('🔄 Sử dụng alternative parser cho Viettel');
+    
+    for (let i = 0; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        const rowValues = Object.values(row);
+        
+        // Bỏ qua dòng trống
+        if (rowValues.every(val => !val || val === '')) continue;
+        
+        // TÌM SỐ HÓA ĐƠN: giá trị số dài 8-12 ký tự
+        let soHoaDon = null;
+        let tenHang = null;
+        
+        for (const value of rowValues) {
+            if (!value) continue;
+            
+            const strValue = value.toString().trim();
+            
+            // Tìm số hóa đơn (dạng số)
+            if (!soHoaDon && /^\d{8,12}$/.test(strValue)) {
+                soHoaDon = strValue;
+            }
+            
+            // Tìm tên hàng (chứa từ khóa sản phẩm)
+            if (!tenHang && typeof value === 'string' && value.length > 3) {
+                if (value.includes('Aquafina') || value.includes('Coca') || value.includes('Pepsi') || 
+                    value.includes('Bia') || value.includes('Nước') || value.includes('Sting') ||
+                    value.includes('Sprite') || value.includes('Dasani') || value.includes('Tiger') ||
+                    value.includes('Heineken') || value.includes('Bánh') || value.includes('Kẹo') ||
+                    value.includes('Lon') || value.includes('Chai') || value.includes('Thùng') ||
+                    value.includes('Bia') || value.includes('Nước')) {
+                    tenHang = value;
+                }
+            }
+        }
+        
+        if (soHoaDon && tenHang) {
+            console.log(`✅ Alternative tìm thấy: HD ${soHoaDon} - ${tenHang}`);
+            
+            const mappedRow = {
+                'STT': realData.length + 1,
+                'SoHoaDon': soHoaDon,
+                'MatHang': tenHang,
+                'SoLuong': 1,
+                'DonGia': 0,
+                'DoanhSo': 0,
+                'ThueGTGT': 0,
+                'NgayHoaDon': '',
+                'TenNguoiMua': 'Khách hàng Viettel',
+                'MST': '',
+                'TaxRate': '10',
+                'FileType': 'VIETTEL'
+            };
+            
+            realData.push(mappedRow);
+        }
+    }
+    
+    console.log(`✅ Alternative parser: ${realData.length} bản ghi`);
+    return realData;
+}
+
+// HÀM TÌM GIÁ TRỊ CỘT TRONG FILE VIETTEL - CẬP NHẬT
+function findViettelColumnValue(row, possibleColumnNames) {
+    for (const colName of possibleColumnNames) {
+        // Thử tìm đúng tên cột trong file Viettel
+        if (row[colName] !== undefined) {
+            return row[colName];
+        }
+        
+        // Tìm theo key không dấu/viết thường
+        for (const key in row) {
+            const normalizedKey = key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const normalizedColName = colName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            
+            if (normalizedKey.includes(normalizedColName)) {
+                return row[key];
+            }
+        }
+    }
+    return null;
+}
+
       function generateNewProductCode(productName, existingProducts) {
             const existingCodes = existingProducts.map(p => p.code);
             
@@ -800,7 +915,71 @@ function downloadMISASample() {
             
             return newCode;
         }
+// HÀM CONVERT CŨ CHO VNPT - GIỮ NGUYÊN CẤU TRÚC
+function convertArrayToObjectForVNPT(arrayData) {
+    if (!arrayData || arrayData.length < 2) return [];
+    
+    const headers = arrayData[0];
+    const result = [];
+    
+    for (let i = 1; i < arrayData.length; i++) {
+        const row = arrayData[i];
+        const obj = {};
+        
+        for (let j = 0; j < headers.length; j++) {
+            if (headers[j] && row[j] !== undefined) {
+                obj[headers[j]] = row[j];
+            } else {
+                // Tạo key cho các cột empty (__EMPTY, __EMPTY_1, ...)
+                const emptyKey = `__EMPTY${j > 0 ? `_${j}` : ''}`;
+                obj[emptyKey] = row[j];
+            }
+        }
+        
+        result.push(obj);
+    }
+    
+    return result;
+}
 
+// HÀM CONVERT MỚI CHO VIETTEL - DÙNG col_index
+function convertArrayToObjectForViettel(arrayData) {
+    if (!arrayData || !Array.isArray(arrayData)) {
+        console.log('❌ Dữ liệu đầu vào không hợp lệ');
+        return [];
+    }
+    
+    const result = [];
+    
+    try {
+        for (let i = 0; i < arrayData.length; i++) {
+            const row = arrayData[i];
+            
+            if (!row || typeof row !== 'object') {
+                continue;
+            }
+            
+            const obj = {};
+            
+            if (Array.isArray(row)) {
+                for (let j = 0; j < row.length; j++) {
+                    obj[`col_${j}`] = row[j];
+                }
+            } else {
+                Object.assign(obj, row);
+            }
+            
+            result.push(obj);
+        }
+        
+        console.log(`✅ Đã tạo ${result.length} object từ ${arrayData.length} dòng`);
+        return result;
+        
+    } catch (error) {
+        console.log(`❌ Lỗi convert: ${error.message}`);
+        return [];
+    }
+}
         // HIỂN THỊ KẾT QUẢ
         function displayResults(result) {
             const summary = document.getElementById('resultSummary');
@@ -862,3 +1041,261 @@ function downloadMISASample() {
             XLSX.utils.book_append_sheet(wb, ws, 'ChungTuBanHang');
             XLSX.writeFile(wb, 'MISA_ChuyenDoi.xlsx');
         });
+
+        /////////////////////////////////////////////////
+
+// HÀM PHÂN LOẠI FILE VÀ XỬ LÝ
+function classifyAndProcessFile(fileData, workbook) {
+    let fileContent = '';
+    
+    // Đọc toàn bộ nội dung file để tìm keyword
+    workbook.SheetNames.forEach(sheetName => {
+        const sheet = workbook.Sheets[sheetName];
+        const range = XLSX.utils.decode_range(sheet['!ref']);
+        
+        // Quét các ô đầu tiên để tìm keyword
+        for (let R = range.s.r; R <= Math.min(range.s.r + 10, range.e.r); R++) {
+            for (let C = range.s.c; C <= Math.min(range.s.c + 10, range.e.c); C++) {
+                const cellAddress = XLSX.utils.encode_cell({r: R, c: C});
+                const cell = sheet[cellAddress];
+                if (cell && cell.v) {
+                    fileContent += cell.v.toString() + ' ';
+                }
+            }
+        }
+    });
+    
+    console.log('🔍 Quét keyword trong file:', fileContent.substring(0, 200));
+    
+    // PHÂN LOẠI FILE
+    if (fileContent.includes('PHỤ LỤC') || fileContent.includes('PHU LUC')) {
+        console.log('✅ Nhận diện: File VNPT (có PHỤ LỤC)');
+        return processVNPTFile(fileData, workbook);
+    } else {
+        console.log('✅ Nhận diện: File VIETTEL');
+        return processViettelFile(fileData, workbook);
+    }
+}
+
+// HÀM TẠO MÃ KHÁCH HÀNG TỪ TÊN
+function generateCustomerCode(customerName, existingCodes = new Set()) {
+    if (!customerName || customerName.trim() === '') {
+        return 'KH0001';
+    }
+    
+    // Chuẩn hóa tên: loại bỏ dấu, chuyển thành chữ hoa
+    const normalizedName = customerName
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Loại bỏ dấu
+        .toUpperCase()
+        .replace(/[^A-Z\s]/g, '') // Chỉ giữ chữ cái và khoảng trắng
+        .trim();
+    
+    // Tách thành các từ
+    const words = normalizedName.split(/\s+/).filter(word => word.length > 0);
+    
+    let code = '';
+    
+    if (words.length >= 5) {
+        // Lấy ký tự đầu của 5 từ đầu tiên
+        code = words.slice(0, 5).map(word => word.charAt(0)).join('');
+    } else {
+        // Lấy ký tự đầu của tất cả từ + bổ sung từ cuối cùng
+        const firstChars = words.map(word => word.charAt(0)).join('');
+        const lastWord = words[words.length - 1];
+        
+        if (firstChars.length < 5) {
+            // Lấy thêm ký tự từ từ cuối cùng
+            const neededChars = 5 - firstChars.length;
+            const additionalChars = lastWord.substring(1, 1 + neededChars);
+            code = firstChars + additionalChars;
+        } else {
+            code = firstChars.substring(0, 5);
+        }
+    }
+    
+    // Đảm bảo mã có đúng 5 ký tự
+    code = code.padEnd(5, 'X').substring(0, 5);
+    
+    // Kiểm tra trùng lặp và tạo mã mới nếu cần
+    let finalCode = code;
+    let counter = 1;
+    
+    while (existingCodes.has(finalCode)) {
+        finalCode = code.substring(0, 4) + counter;
+        counter++;
+        if (counter > 9) {
+            finalCode = code.substring(0, 3) + counter;
+        }
+        if (counter > 99) {
+            finalCode = code.substring(0, 2) + counter;
+        }
+    }
+    
+    existingCodes.add(finalCode);
+    return finalCode;
+}
+
+// BIẾN TOÀN CỤC ĐỂ THEO DÕI MÃ KHÁCH HÀNG ĐÃ TẠO
+let customerCodeMap = new Map();
+let customerCodeCounter = new Set();
+// HÀM PARSE FILE VIETTEL - GIỮ NGUYÊN ĐỊNH DẠNG SỐ
+// HÀM PARSE FILE VIETTEL - GIỮ NGUYÊN ĐỊNH DẠNG SỐ
+function parseViettelFileData(jsonData) {
+    const realData = [];
+    
+    console.log('🔍 Phân tích file Viettel - Giữ nguyên định dạng số');
+
+    for (let i = 0; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        
+        const rowValues = Object.values(row);
+        const rowString = rowValues.join(' ');
+        
+        // Bỏ qua dòng trống hoặc header
+        if (rowString.includes('STT') || rowString.includes('Số hóa đơn') || 
+            rowString.includes('Tên hàng hóa') || rowString.trim() === '') {
+            continue;
+        }
+        
+        // KIỂM TRA NẾU DÒNG BỊ CQT TỪ CHỐI CẤP MÃ
+        if (rowString.includes('CQT từ chối cấp mã')) {
+            console.log(`⏭️ Bỏ qua dòng ${i}: CQT từ chối cấp mã`);
+            continue; // Bỏ qua dòng này
+        }
+        
+        // MAP CHÍNH XÁC TỪ FILE - GIỮ NGUYÊN ĐỊNH DẠNG
+        const soHoaDon = row['col_3'];
+        const tenHang = row['col_15'];
+        const soLuong = row['col_18']; 
+        const donGia = row['col_19'];
+        const doanhSo = row['col_21'];
+        const thueGTGT = row['col_28'];
+        const thueSuat = row['col_25'];
+        const ngayHoaDon = row['col_4'];
+        const tenNguoiMua = row['col_7'];
+        const maSoThue = row['col_9'];
+        
+        if (soHoaDon && tenHang) {
+            console.log(`✅ Dòng ${i}: HD ${soHoaDon} - ${tenHang}`);
+            
+            // HÀM CHUYỂN ĐỔI SỐ AN TOÀN - GIỮ NGUYÊN GIÁ TRỊ GỐC
+            const safeParseNumber = (value) => {
+                if (!value) return 0;
+                
+                // Nếu là số rồi thì trả về luôn
+                if (typeof value === 'number') return value;
+                
+                // Nếu là string, xử lý dấu phân cách
+                const strValue = value.toString().trim();
+                
+                // Loại bỏ dấu phân cách hàng nghìn, giữ nguyên dấu thập phân
+                const cleanValue = strValue
+                    .replace(/\./g, '') // Loại bỏ dấu chấm phân cách hàng nghìn (1.000 -> 1000)
+                    .replace(/,/g, '.'); // Chuyển dấu phẩy thập phân thành chấm (0,5 -> 0.5)
+                
+                const numValue = parseFloat(cleanValue);
+                return isNaN(numValue) ? 0 : numValue;
+            };
+            
+            const mappedRow = {
+                'STT': realData.length + 1,
+                'SoHoaDon': soHoaDon.toString().trim(),
+                'MatHang': tenHang.toString().trim(),
+                'SoLuong': safeParseNumber(soLuong),
+                'DonGia': safeParseNumber(donGia),
+                'DoanhSo': safeParseNumber(doanhSo), // GIỮ ĐÚNG 730,909.00 -> 730909.00
+                'ThueGTGT': safeParseNumber(thueGTGT),
+                'NgayHoaDon': ngayHoaDon ? ngayHoaDon.toString().trim() : '',
+                'TenNguoiMua': tenNguoiMua ? tenNguoiMua.toString().trim() : 'Khách hàng Viettel',
+                'MST': maSoThue ? maSoThue.toString().trim() : '',
+                'TaxRate': thueSuat ? thueSuat.toString().replace('%', '').replace('.0', '') : '10',
+                'FileType': 'VIETTEL',
+                'RawIndex': i,
+                // Lưu giá trị gốc để debug
+                '_OriginalValues': {
+                    'DonGia': donGia,
+                    'DoanhSo': doanhSo,
+                    'ThueGTGT': thueGTGT
+                }
+            };
+            
+            // DEBUG: Kiểm tra chuyển đổi số
+            if (doanhSo && doanhSo.toString() !== mappedRow.DoanhSo.toString()) {
+                console.log(`🔢 Chuyển đổi số: "${doanhSo}" -> ${mappedRow.DoanhSo}`);
+            }
+            
+            realData.push(mappedRow);
+        }
+    }
+    
+    console.log(`✅ Đã trích xuất ${realData.length} bản ghi từ Viettel`);
+    return realData;
+}
+function findLastDataLines(jsonData, count = 5) {
+    console.log('🔍 Tìm các dòng dữ liệu cuối cùng:');
+    const dataLines = [];
+    
+    for (let i = Math.max(0, jsonData.length - 10); i < jsonData.length; i++) {
+        const row = jsonData[i];
+        const rowValues = Object.values(row).filter(val => val && val.toString().trim() !== '');
+        
+        if (rowValues.length > 3) {
+            dataLines.push({ index: i, values: rowValues });
+        }
+    }
+    
+    dataLines.forEach(line => {
+        console.log(`Dòng ${line.index}:`, line.values.slice(0, 5));
+    });
+}
+
+function debugFileStructure(jsonData) {
+    console.log('🔍 DEBUG CẤU TRÚC FILE:');
+    
+    for (let i = 0; i < Math.min(10, jsonData.length); i++) {
+        const row = jsonData[i];
+        console.log(`Dòng ${i}:`, {
+            values: Object.values(row),
+            keys: Object.keys(row),
+            raw: row
+        });
+    }
+    
+    // Tìm tất cả các tên cột có trong file
+    const allColumns = new Set();
+    jsonData.forEach(row => {
+        Object.keys(row).forEach(key => allColumns.add(key));
+    });
+    console.log('📋 Tất cả các cột trong file:', Array.from(allColumns));
+}
+
+// HÀM PROCESS VNPT - DÙNG CONVERT CŨ
+function processVNPTFile(fileData, workbook) {
+    console.log('🔧 Bắt đầu xử lý file VNPT');
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    
+    // DÙNG HÀM CONVERT CŨ CHO VNPT
+    const jsonData = convertArrayToObjectForVNPT(rawData);
+    
+    const vnptData = parseVNPTFileData(jsonData);
+    
+    console.log(`✅ Đã trích xuất ${vnptData.length} bản ghi từ file VNPT`);
+    return vnptData;
+}
+
+// HÀM PROCESS VIETTEL - DÙNG CONVERT MỚI
+function processViettelFile(fileData, workbook) {
+    console.log('🔧 Bắt đầu xử lý file Viettel');
+    
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    
+    // DÙNG HÀM CONVERT MỚI CHO VIETTEL
+    const jsonData = convertArrayToObjectForViettel(rawData);
+    const viettelData = parseViettelFileData(jsonData);
+    
+    console.log(`✅ Kết quả: ${viettelData.length} bản ghi`);
+    return viettelData;
+}
