@@ -186,89 +186,227 @@ function viewPurchaseInvoiceDetail(invoiceId) {
     }
 
     let detailHtml = `
-        <div class="card">
-            <div class="card-header">📄 Thông Tin Hóa Đơn</div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-6">
-                        <p><strong>📋 Số HĐ:</strong> ${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}</p>
-                        <p><strong>📅 Ngày HĐ:</strong> ${window.formatDate(invoice.invoiceInfo.date)}</p>
-                        <p><strong>🏢 Nhà cung cấp:</strong> ${invoice.sellerInfo.name}</p>
-                    </div>
-                    <div class="col-6">
-                        <p><strong>🔢 MST NCC:</strong> ${invoice.sellerInfo.taxCode}</p>
-                        <p><strong>📍 Địa chỉ:</strong> ${invoice.sellerInfo.address || 'Không có'}</p>
-                        <p><strong>📞 Điện thoại:</strong> ${invoice.sellerInfo.phone || 'Không có'}</p>
+        <div class="invoice-detail-compact">
+            <!-- HEADER THÔNG TIN CHÍNH -->
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <strong>📄 HÓA ĐƠN ${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}</strong>
+                    <span class="badge ${invoice.status?.stockPosted ? 'bg-success' : 'bg-warning'}">
+                        ${invoice.status?.stockPosted ? '✅ ĐÃ NHẬP KHO' : '⚠️ CHƯA NHẬP KHO'}
+                    </span>
+                </div>
+                <div class="card-body p-3">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <span class="label">📅 Ngày HĐ:</span>
+                                <span class="value">${window.formatDate(invoice.invoiceInfo.date)}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">🏢 Nhà cung cấp:</span>
+                                <span class="value">${invoice.sellerInfo.name}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <span class="label">🔢 MST:</span>
+                                <span class="value">${invoice.sellerInfo.taxCode}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">📍 Địa chỉ:</span>
+                                <span class="value">${invoice.sellerInfo.address || '---'}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">💰 Tổng Hợp Thanh Toán</div>
-            <div class="card-body">
-                <table class="table table-bordered">
-                    <tr><th>Tổng tiền hàng trước thuế</th><td style="text-align: right;">${window.formatCurrency(invoice.summary.calculatedAmountAfterDiscount)}</td></tr>
-                    <tr><th>Thuế GTGT</th><td style="text-align: right;">${window.formatCurrency(invoice.summary.calculatedTax)}</td></tr>
-                    <tr style="font-weight: bold; background: #f8f9fa;"><th>Tổng thanh toán</th><td style="text-align: right;">${window.formatCurrency(invoice.summary.calculatedTotal)}</td></tr>
-                    <tr><th>Trạng thái</th><td>${invoice.status && invoice.status.stockPosted ? '✅ Đã nhập kho' : '⚠️ Chưa nhập kho'}</td></tr>
-                </table>
+
+            <!-- TỔNG HỢP THANH TOÁN - COMPACT -->
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <strong>💰 TỔNG HỢP THANH TOÁN</strong>
+                </div>
+                <div class="card-body p-2">
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <div class="summary-label">Tiền hàng:</div>
+                            <div class="summary-value">${window.formatCurrency(invoice.summary.calculatedAmountAfterDiscount)}</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">Thuế GTGT:</div>
+                            <div class="summary-value">${window.formatCurrency(invoice.summary.calculatedTax)}</div>
+                        </div>
+                        <div class="summary-item total">
+                            <div class="summary-label"><strong>Tổng thanh toán:</strong></div>
+                            <div class="summary-value"><strong>${window.formatCurrency(invoice.summary.calculatedTotal)}</strong></div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">📦 Chi Tiết Hàng Hóa</div>
-            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                <table class="table table-striped table-sm">
-                    <thead>
-                        <tr>
-                            <th>STT</th>
-                            <th>MSP</th>
-                            <th>Tên hàng hóa</th>
-                            <th>ĐVT</th>
-                            <th>SL</th>
-                            <th>Đơn giá</th>
-                            <th>Chiết khấu</th>
-                            <th>Thành tiền</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+
+            <!-- DANH SÁCH SẢN PHẨM - TỐI ƯU HIỂN THỊ -->
+            <div class="card">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <strong>📦 DANH SÁCH HÀNG HÓA (${invoice.products.length} sản phẩm)</strong>
+                    <small class="text-muted">Click tiêu đề để sắp xếp</small>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="sticky-top" style="background: #f8f9fa;">
+                                <tr>
+                                    <th width="5%">STT</th>
+                                    <th width="15%">MSP</th>
+                                    <th width="30%">Tên hàng hóa</th>
+                                    <th width="8%">ĐVT</th>
+                                    <th width="10%" class="text-end">SL</th>
+                                    <th width="12%" class="text-end">Đơn giá</th>
+                                    <th width="10%" class="text-end">Chiết khấu</th>
+                                    <th width="10%" class="text-end">Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
     `;
     
+    let totalQuantity = 0;
+    let totalDiscount = 0;
+    
     invoice.products.forEach(product => {
-        // Lấy thông tin chiết khấu từ XML, nếu không có thì hiển thị 0
         const discount = product.discount || product.discountAmount || product.discountRate || 0;
         const discountFormatted = typeof discount === 'number' ? window.formatCurrency(discount) : discount;
         
+        totalQuantity += parseFloat(product.quantity) || 0;
+        totalDiscount += parseFloat(discount) || 0;
+        
+        // Tối ưu hiển thị tên sản phẩm dài
+        const productName = product.name.length > 40 ? 
+            product.name.substring(0, 40) + '...' : product.name;
+        
         detailHtml += `
             <tr>
-                <td>${product.stt}</td>
-                <td><code>${product.msp}</code></td>
-                <td>${product.name}</td>
-                <td>${product.unit}</td>
-                <td style="text-align: right;">${product.quantity}</td>
-                <td style="text-align: right;">${window.formatCurrency(product.price)}</td>
-                <td style="text-align: right;">${discountFormatted}</td>
-                <td style="text-align: right;">${window.formatCurrency(product.amount)}</td>
+                <td><small class="text-muted">${product.stt}</small></td>
+                <td><code class="text-primary">${product.msp}</code></td>
+                <td title="${product.name}"><small>${productName}</small></td>
+                <td><small>${product.unit}</small></td>
+                <td class="text-end"><small>${parseFloat(product.quantity).toLocaleString('vi-VN')}</small></td>
+                <td class="text-end"><small>${window.formatCurrency(product.price)}</small></td>
+                <td class="text-end ${discount > 0 ? 'text-danger' : 'text-muted'}"><small>${discountFormatted}</small></td>
+                <td class="text-end"><small><strong>${window.formatCurrency(product.amount)}</strong></small></td>
             </tr>
         `;
     });
     
+    // TỔNG HỢP CUỐI BẢNG
     detailHtml += `
-                    </tbody>
-                </table>
+                            </tbody>
+                            <tfoot class="table-secondary" style="position: sticky; bottom: 0;">
+                                <tr>
+                                    <td colspan="4" class="text-end"><strong>Tổng cộng:</strong></td>
+                                    <td class="text-end"><strong>${totalQuantity.toLocaleString('vi-VN')}</strong></td>
+                                    <td></td>
+                                    <td class="text-end"><strong class="text-danger">${window.formatCurrency(totalDiscount)}</strong></td>
+                                    <td class="text-end"><strong class="text-primary">${window.formatCurrency(invoice.summary.calculatedTotal)}</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NÚT THAO TÁC -->
+            <div class="action-buttons mt-3 text-center">
+                <button class="btn btn-outline-primary btn-sm me-2" onclick="printPurchaseInvoice('${invoiceId}')">
+                    🖨️ In HĐ
+                </button>
+                ${(!invoice.status || !invoice.status.stockPosted) ? 
+                `<button class="btn btn-success btn-sm me-2" onclick="createPurchaseReceipt('${invoiceId}')">
+                    📦 Tạo Phiếu Nhập
+                </button>` : ''}
+                <button class="btn btn-warning btn-sm" onclick="editPurchaseInvoice('${invoiceId}')">
+                    ✏️ Sửa HĐ
+                </button>
             </div>
         </div>
-        
-        <div style="text-align: center; margin-top: 20px;">
-            <button class="btn btn-primary" onclick="printPurchaseInvoice('${invoiceId}')">🖨️ In Hóa Đơn</button>
-            ${(!invoice.status || !invoice.status.stockPosted) ? 
-              `<button class="btn btn-success" onclick="createPurchaseReceipt('${invoiceId}')">📦 Tạo Phiếu Nhập Kho</button>` : 
-              ''}
-        </div>
+
+        <style>
+        .invoice-detail-compact {
+            font-size: 0.9rem;
+        }
+        .info-item {
+            display: flex;
+            justify-content: between;
+            margin-bottom: 8px;
+            padding: 4px 0;
+        }
+        .info-item .label {
+            font-weight: 600;
+            color: #495057;
+            min-width: 120px;
+        }
+        .info-item .value {
+            color: #212529;
+            flex: 1;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .summary-item.total {
+            grid-column: 1 / -1;
+            background: #e7f3ff;
+            margin: 5px -10px;
+            padding: 8px 10px;
+            border-radius: 4px;
+            border-bottom: none;
+        }
+        .summary-label {
+            font-weight: 500;
+        }
+        .summary-value {
+            font-weight: 600;
+        }
+        .table th {
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-bottom: 2px solid #dee2e6;
+            white-space: nowrap;
+        }
+        .table td {
+            font-size: 0.8rem;
+            vertical-align: middle;
+            padding: 4px 8px;
+        }
+        .action-buttons .btn {
+            min-width: 100px;
+        }
+        .sticky-top {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        @media (max-width: 768px) {
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+            .info-item {
+                flex-direction: column;
+            }
+            .info-item .label {
+                min-width: auto;
+                margin-bottom: 2px;
+            }
+        }
+        </style>
     `;
     
-    window.showModal(`📄 Chi Tiết Hóa Đơn - ${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}`, detailHtml, 'modal-lg');
+    window.showModal(`📄 ${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}`, detailHtml, 'modal-xl');
 }
 
 // =======================
@@ -290,118 +428,365 @@ function editPurchaseInvoice(invoiceId) {
 
     console.log('🎯 Bắt đầu mở popup chỉnh sửa hóa đơn:', invoiceId);
 
-    // Tạo form chỉnh sửa
     let editHtml = `
-        <div class="card">
-            <div class="card-header">📝 Chỉnh Sửa Hóa Đơn</div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-6">
-                        <div class="form-group">
-                            <label><strong>📋 Số HĐ:</strong></label>
-                            <input type="text" class="form-control" id="edit-invoice-number" value="${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}">
+        <div class="invoice-edit-compact">
+            <!-- HEADER THÔNG TIN CHÍNH -->
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>📝 CHỈNH SỬA HÓA ĐƠN ${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}</strong>
+                    </div>
+                    <span class="badge ${invoice.status?.stockPosted ? 'bg-success' : 'bg-warning'}">
+                        ${invoice.status?.stockPosted ? '✅ ĐÃ NHẬP KHO' : '⚠️ CHƯA NHẬP KHO'}
+                    </span>
+                </div>
+                <div class="card-body p-3">
+                    <!-- HÀNG 1: 3 ITEM CÙNG HÀNG -->
+                    <div class="form-row-horizontal">
+                        <div class="form-item">
+                            <div class="form-icon">📋</div>
+                            <div class="form-details">
+                                <label class="form-label">Số HĐ</label>
+                                <input type="text" class="form-control form-control-sm" id="edit-invoice-number" 
+                                       value="${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}">
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label><strong>📅 Ngày HĐ:</strong></label>
-                            <input type="date" class="form-control" id="edit-invoice-date" value="${invoice.invoiceInfo.date}">
+                        
+                        <div class="form-item">
+                            <div class="form-icon">📅</div>
+                            <div class="form-details">
+                                <label class="form-label">Ngày HĐ</label>
+                                <input type="date" class="form-control form-control-sm" id="edit-invoice-date" 
+                                       value="${invoice.invoiceInfo.date}">
+                            </div>
+                        </div>
+                        
+                        <div class="form-item">
+                            <div class="form-icon">🔢</div>
+                            <div class="form-details">
+                                <label class="form-label">MST NCC</label>
+                                <input type="text" class="form-control form-control-sm" id="edit-supplier-taxcode" 
+                                       value="${invoice.sellerInfo.taxCode}">
+                            </div>
                         </div>
                     </div>
-                    <div class="col-6">
-                        <div class="form-group">
-                            <label><strong>🏢 Nhà cung cấp:</strong></label>
-                            <input type="text" class="form-control" id="edit-supplier-name" value="${invoice.sellerInfo.name}">
-                        </div>
-                        <div class="form-group">
-                            <label><strong>🔢 MST NCC:</strong></label>
-                            <input type="text" class="form-control" id="edit-supplier-taxcode" value="${invoice.sellerInfo.taxCode}">
+                    
+                    <!-- HÀNG 2: 1 ITEM FULL WIDTH -->
+                    <div class="form-row-horizontal full-width">
+                        <div class="form-item">
+                            <div class="form-icon">🏢</div>
+                            <div class="form-details flex-grow-1">
+                                <label class="form-label">Nhà cung cấp</label>
+                                <input type="text" class="form-control form-control-sm" id="edit-supplier-name" 
+                                       value="${invoice.sellerInfo.name}">
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">💰 Tổng Hợp Thanh Toán</div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-4">
-                        <div class="form-group">
-                            <label><strong>Tổng tiền hàng:</strong></label>
-                            <input type="number" class="form-control" id="edit-total-amount" value="${invoice.summary.calculatedAmountAfterDiscount}" step="0.01" oninput="calculateTotalPayment()">
+
+            <!-- TỔNG HỢP THANH TOÁN - 3 ITEM CÙNG HÀNG -->
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <strong>💰 TỔNG HỢP THANH TOÁN</strong>
+                </div>
+                <div class="card-body p-3">
+                    <div class="form-row-horizontal">
+                        <div class="amount-item">
+                            <label class="amount-label">Tiền hàng</label>
+                            <input type="number" class="form-control form-control-sm amount-input" id="edit-total-amount" 
+                                   value="${invoice.summary.calculatedAmountAfterDiscount}" step="0.01" 
+                                   oninput="calculateTotalPayment()">
                         </div>
-                    </div>
-                    <div class="col-4">
-                        <div class="form-group">
-                            <label><strong>Thuế GTGT:</strong></label>
-                            <input type="number" class="form-control" id="edit-tax-amount" value="${invoice.summary.calculatedTax}" step="0.01" oninput="calculateTotalPayment()">
+                        
+                        <div class="amount-item">
+                            <label class="amount-label">Thuế GTGT</label>
+                            <input type="number" class="form-control form-control-sm amount-input" id="edit-tax-amount" 
+                                   value="${invoice.summary.calculatedTax}" step="0.01" 
+                                   oninput="calculateTotalPayment()">
                         </div>
-                    </div>
-                    <div class="col-4">
-                        <div class="form-group">
-                            <label><strong>Tổng thanh toán:</strong></label>
-                            <input type="number" class="form-control" id="edit-total-payment" value="${invoice.summary.calculatedTotal}" step="0.01" readonly>
+                        
+                        <div class="amount-item">
+                            <label class="amount-label total-label">Tổng thanh toán</label>
+                            <input type="number" class="form-control form-control-sm amount-input total-input" id="edit-total-payment" 
+                                   value="${invoice.summary.calculatedTotal}" step="0.01" readonly>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">📦 Chi Tiết Hàng Hóa</div>
-            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                <table class="table table-striped table-sm">
-                    <thead>
-                        <tr>
-                            <th>STT</th>
-                            <th>MSP</th>
-                            <th>Tên hàng hóa</th>
-                            <th>ĐVT</th>
-                            <th>SL</th>
-                            <th>Đơn giá</th>
-                            <th>Chiết khấu</th>
-                            <th>Thành tiền</th>
-                            <th>Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody id="edit-products-body">
+
+            <!-- DANH SÁCH SẢN PHẨM -->
+            <div class="card">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <strong>📦 DANH SÁCH HÀNG HÓA (${invoice.products.length} sản phẩm)</strong>
+                    <button class="btn btn-success btn-sm" onclick="addNewProduct('${invoiceId}')">
+                        ➕ Thêm dòng
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="sticky-top" style="background: #f8f9fa;">
+                                <tr>
+                                    <th width="4%">STT</th>
+                                    <th width="12%">MSP</th>
+                                    <th width="22%">Tên hàng</th>
+                                    <th width="8%">ĐVT</th>
+                                    <th width="8%" class="text-end">SL</th>
+                                    <th width="12%" class="text-end">Đơn giá</th>
+                                    <th width="10%" class="text-end">Chiết khấu</th>
+                                    <th width="12%" class="text-end">Thành tiền</th>
+                                    <th width="8%" class="text-center">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="edit-products-body">
     `;
     
-    // Hiển thị các dòng sản phẩm hiện tại với cột chiết khấu
+    // Hiển thị các dòng sản phẩm
     invoice.products.forEach((product, index) => {
         const discount = product.discount || product.discountAmount || product.discountRate || 0;
         
         editHtml += `
             <tr id="product-row-${index}">
-                <td>${product.stt}</td>
-                <td><input type="text" class="form-control form-control-sm" value="${product.msp}" onchange="updateProductField('${invoiceId}', ${index}, 'msp', this.value)"></td>
-                <td><input type="text" class="form-control form-control-sm" value="${product.name}" onchange="updateProductField('${invoiceId}', ${index}, 'name', this.value)"></td>
-                <td><input type="text" class="form-control form-control-sm" value="${product.unit}" onchange="updateProductField('${invoiceId}', ${index}, 'unit', this.value)"></td>
-                <td><input type="number" class="form-control form-control-sm" value="${product.quantity}" step="0.001" onchange="updateProductField('${invoiceId}', ${index}, 'quantity', this.value)"></td>
-                <td><input type="number" class="form-control form-control-sm" value="${product.price}" step="0.01" onchange="updateProductField('${invoiceId}', ${index}, 'price', this.value)"></td>
-                <td><input type="number" class="form-control form-control-sm" value="${discount}" step="0.01" onchange="updateProductField('${invoiceId}', ${index}, 'discount', this.value)"></td>
-                <td><input type="number" class="form-control form-control-sm" value="${product.amount}" step="0.01" onchange="updateProductField('${invoiceId}', ${index}, 'amount', this.value)"></td>
+                <td class="text-center">
+                    <small class="text-muted">${product.stt}</small>
+                </td>
                 <td>
-                    <button class="btn btn-sm btn-danger" onclick="removeProduct('${invoiceId}', ${index})">🗑️</button>
+                    <input type="text" class="form-control form-control-sm compact-input" 
+                           value="${product.msp}" 
+                           onchange="updateProductField('${invoiceId}', ${index}, 'msp', this.value)"
+                           placeholder="MSP">
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm compact-input" 
+                           value="${product.name}" 
+                           onchange="updateProductField('${invoiceId}', ${index}, 'name', this.value)"
+                           placeholder="Tên hàng hóa">
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm compact-input" 
+                           value="${product.unit}" 
+                           onchange="updateProductField('${invoiceId}', ${index}, 'unit', this.value)"
+                           placeholder="ĐVT">
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm compact-input text-end" 
+                           value="${product.quantity}" step="0.001" 
+                           onchange="updateProductField('${invoiceId}', ${index}, 'quantity', this.value)">
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm compact-input text-end" 
+                           value="${product.price}" step="0.01" 
+                           onchange="updateProductField('${invoiceId}', ${index}, 'price', this.value)">
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm compact-input text-end" 
+                           value="${discount}" step="0.01" 
+                           onchange="updateProductField('${invoiceId}', ${index}, 'discount', this.value)">
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm compact-input text-end" 
+                           value="${product.amount}" step="0.01" 
+                           onchange="updateProductField('${invoiceId}', ${index}, 'amount', this.value)">
+                </td>
+                <td class="text-center">
+                    <button class="btn btn-outline-danger btn-xs" 
+                            onclick="removeProduct('${invoiceId}', ${index})"
+                            title="Xóa dòng">
+                        🗑️
+                    </button>
                 </td>
             </tr>
         `;
     });
     
     editHtml += `
-                    </tbody>
-                </table>
-                <button class="btn btn-sm btn-success" onclick="addNewProduct('${invoiceId}')">➕ Thêm dòng</button>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- THÔNG BÁO VÀ NÚT THAO TÁC -->
+            <div class="alert alert-info mt-3 mb-2 py-2">
+                <small>💡 <strong>Lưu ý:</strong> Thay đổi sẽ tự động cập nhật vào tồn kho nếu hóa đơn đã được nhập kho.</small>
+            </div>
+
+            <div class="action-buttons text-center pt-2">
+                <button class="btn btn-primary btn-sm me-2" onclick="saveInvoiceChanges('${invoiceId}')">
+                    💾 Lưu Thay Đổi
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="closeModal()">
+                    ❌ Hủy
+                </button>
             </div>
         </div>
+
+        <style>
+        .invoice-edit-compact {
+            font-size: 0.85rem;
+        }
         
-        <div class="alert alert-info">
-            <strong>💡 Lưu ý:</strong> Thay đổi sẽ tự động cập nhật vào tồn kho nếu hóa đơn đã được nhập kho.
-        </div>
+        /* HORIZONTAL FORM LAYOUT - CÁC ITEM CÙNG HÀNG */
+        .form-row-horizontal {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+            margin-bottom: 15px;
+        }
         
-        <div style="text-align: center; margin-top: 20px;">
-            <button class="btn btn-primary" onclick="saveInvoiceChanges('${invoiceId}')">💾 Lưu Thay Đổi</button>
-            <button class="btn btn-secondary" onclick="closeModal()">❌ Hủy</button>
-        </div>
+        .form-row-horizontal.full-width {
+            margin-bottom: 0;
+        }
+        
+        .form-item {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            flex: 1;
+            min-width: 0; /* Quan trọng để flex hoạt động */
+        }
+        
+        .amount-item {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .form-icon {
+            font-size: 1.3rem;
+            padding-bottom: 6px;
+            flex-shrink: 0;
+        }
+        
+        .form-details {
+            flex: 1;
+            min-width: 0; /* Quan trọng để input không bị tràn */
+        }
+        
+        .form-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #495057;
+            display: block;
+            white-space: nowrap;
+        }
+        
+        /* AMOUNT STYLES */
+        .amount-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #495057;
+            display: block;
+            white-space: nowrap;
+        }
+        
+        .total-label {
+            color: #dc3545;
+            font-weight: 700;
+        }
+        
+        .amount-input {
+            text-align: right;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 6px 8px;
+        }
+        
+        .total-input {
+            background-color: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+            font-weight: 700;
+        }
+        
+        /* FORM CONTROLS */
+        .form-control-sm {
+            font-size: 0.8rem;
+            padding: 4px 8px;
+            height: 32px;
+            width: 100%; /* Quan trọng để input chiếm full width */
+        }
+        
+        .compact-input {
+            font-size: 0.75rem;
+            padding: 2px 4px;
+            height: 28px;
+            min-width: 60px;
+        }
+        
+        /* TABLE STYLES */
+        .table th {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 6px 4px;
+            white-space: nowrap;
+        }
+        
+        .table td {
+            font-size: 0.75rem;
+            padding: 4px 2px;
+            vertical-align: middle;
+        }
+        
+        .btn-xs {
+            padding: 1px 4px;
+            font-size: 0.7rem;
+            line-height: 1.2;
+        }
+        
+        .action-buttons .btn {
+            min-width: 120px;
+            font-size: 0.8rem;
+        }
+        
+        .sticky-top {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .text-end input {
+            text-align: right;
+        }
+        
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .invoice-edit-compact {
+                font-size: 0.8rem;
+            }
+            
+            .form-row-horizontal {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .form-item {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 5px;
+            }
+            
+            .form-icon {
+                text-align: center;
+                padding-bottom: 0;
+            }
+            
+            .compact-input {
+                font-size: 0.7rem;
+                min-width: 50px;
+            }
+            
+            .table-responsive {
+                font-size: 0.7rem;
+            }
+            
+            .amount-input {
+                font-size: 0.8rem;
+            }
+        }
+        </style>
     `;
     
     // KIỂM TRA HÀM showModal TỒN TẠI
@@ -412,7 +797,7 @@ function editPurchaseInvoice(invoiceId) {
     }
     
     try {
-        window.showModal(`📝 Chỉnh Sửa Hóa Đơn - ${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}`, editHtml, 'modal-xl');
+        window.showModal(`📝 ${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}`, editHtml, 'modal-xl');
         console.log('✅ Đã gọi hàm showModal thành công');
     } catch (error) {
         console.error('❌ Lỗi khi gọi showModal:', error);
@@ -522,9 +907,6 @@ function initMuaHangModule() {
         console.error('❌ Không tìm thấy nút process-purchase-invoices');
     }
 
-    // Tải danh sách hóa đơn mua hàng
-    loadPurchaseInvoices();
-    
     // Tải công nợ phải trả
     loadPayableList();
     
@@ -532,53 +914,7 @@ function initMuaHangModule() {
 }
 
 
-function updateFileStats(total, success, error, duplicate, stockPosted = 0) {
-    console.log('📊 Cập nhật thống kê:', {total, success, error, duplicate, stockPosted});
-    
-    // KIỂM TRA XEM ĐANG Ở TAB NÀO
-    const currentTab = document.querySelector('.nav-tab.active')?.getAttribute('data-tab');
-    console.log('📍 Tab hiện tại:', currentTab);
-    
-    if (currentTab === 'mua-hang') {
-        // Nếu đang ở tab Mua Hàng, sử dụng hàm của tab Mua Hàng
-        if (typeof updatePurchaseFileStats === 'function') {
-        } else {
-            console.warn('⚠️ Hàm updatePurchaseFileStats không tồn tại');
-        }
-        return;
-    }
-    
-    // Nếu đang ở tab Trích Xuất HĐ (tab cũ), cập nhật các phần tử cũ
-    try {
-        const totalFilesElem = document.getElementById('total-files');
-        const successCountElem = document.getElementById('success-count');
-        const duplicateCountElem = document.getElementById('duplicate-count');
-        const errorCountElem = document.getElementById('error-count');
-        const stockPostedElem = document.getElementById('stock-posted-count');
-        
-        // CHỈ CẬP NHẬT NẾU PHẦN TỬ TỒN TẠI
-        if (totalFilesElem) totalFilesElem.textContent = total;
-        if (successCountElem) successCountElem.textContent = success;
-        if (duplicateCountElem) duplicateCountElem.textContent = duplicate;
-        if (errorCountElem) errorCountElem.textContent = error;
-        if (stockPostedElem) stockPostedElem.textContent = stockPosted;
-        
-        // Hiển thị container thống kê nếu tồn tại
-        const fileStatsElem = document.getElementById('file-stats');
-        if (fileStatsElem) {
-            fileStatsElem.classList.remove('hidden');
-        }
-        
-    } catch (error) {
-        console.warn('⚠️ Không thể cập nhật thống kê tab cũ:', error.message);
-    }
-}
-// XÓA HÀM TRÙNG LẶP NÀY (đã có trong zip-trichxuat.js)
-/*
-function updateFileStats(total, success, error, duplicate, stockPosted = 0) {
-    // XÓA TOÀN BỘ HÀM NÀY
-}
-*/
+
 
 // GIỮ LẠI HÀM createPurchaseStatsContainer VÀ updatePurchaseFileStats
 function createPurchaseStatsContainer() {
@@ -627,116 +963,7 @@ function createPurchaseStatsContainer() {
     console.log('✅ Đã tạo container thống kê');
 }
 
-// THÊM HÀM HIỂN THỊ KẾT QUẢ FILE BỊ THIẾU
-function showPurchaseFileResults(fileResults) {
-    let resultsHtml = `
-        <div class="card">
-            <div class="card-header">📋 Chi Tiết Kết Quả Xử Lý</div>
-            <div style="max-height: 300px; overflow-y: auto;">
-                <table class="table table-sm">
-                    <thead>
-                        <tr>
-                            <th>File</th>
-                            <th>Trạng thái</th>
-                            <th>Thông báo</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-    `;
-    
-    fileResults.forEach(result => {
-        let statusClass = '';
-        let statusIcon = '';
-        
-        switch(result.status) {
-            case 'success':
-                statusClass = 'text-success';
-                statusIcon = '✅';
-                break;
-            case 'duplicate':
-                statusClass = 'text-warning';
-                statusIcon = '⚠️';
-                break;
-            case 'error':
-                statusClass = 'text-danger';
-                statusIcon = '❌';
-                break;
-            default:
-                statusClass = 'text-secondary';
-                statusIcon = '🔍';
-        }
-        
-        resultsHtml += `
-            <tr>
-                <td><small>${result.file}</small></td>
-                <td class="${statusClass}">${statusIcon} ${result.status}</td>
-                <td><small>${result.message}</small></td>
-            </tr>
-        `;
-    });
-    
-    resultsHtml += `
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
-    
-    // Hiển thị trong modal
-    window.showModal('📋 Kết Quả Xử Lý Chi Tiết', resultsHtml);
-}
 
-// THÊM HÀM HIỂN THỊ KẾT QUẢ CUỐI CÙNG
-function showPurchaseFinalResult(results, totalFiles) {
-    const successRate = totalFiles > 0 ? (results.processedCount / totalFiles * 100).toFixed(1) : 0;
-    
-    const message = `
-🎯 **XỬ LÝ HOÀN TẤT!**
-
-📊 **Tổng kết:**
-• 📁 Tổng file: ${totalFiles}
-• ✅ Thành công: ${results.processedCount}
-• 🔄 Trùng lặp: ${results.duplicateCount}
-• 📦 Đã chuyển kho: ${results.stockPostedCount}
-• ❌ Lỗi: ${results.errorCount}
-• 📈 Tỷ lệ thành công: ${successRate}%
-
-🏢 **Tình trạng công ty:**
-• Đang chọn: ${window.currentCompany ? window.hkdData[window.currentCompany]?.name : 'Chưa chọn'}
-• Tổng công ty: ${Object.keys(window.hkdData).length}
-
-💡 **Tiếp theo:**
-• Hóa đơn đã được gom theo MST người mua
-• Tự động tạo công ty nếu chưa có
-• Dữ liệu đã sẵn sàng trong tab Mua Hàng
-    `;
-    
-    // Sử dụng console.log để debug
-    console.log('🔍 DEBUG - Danh sách công ty sau xử lý:', Object.keys(window.hkdData));
-    console.log('🔍 DEBUG - Hóa đơn trong công ty hiện tại:', 
-        window.currentCompany ? window.hkdData[window.currentCompany]?.invoices?.length : 'Chưa chọn công ty');
-    
-    alert(message);
-}
-// THÊM HÀM DEBUG VÀO muahang.js
-function debugCompanyData() {
-    console.log('🔍 DEBUG COMPANY DATA:');
-    console.log('- Số công ty:', Object.keys(window.hkdData).length);
-    
-    Object.keys(window.hkdData).forEach(taxCode => {
-        const company = window.hkdData[taxCode];
-        console.log(`- ${taxCode}: ${company.name}`);
-        console.log(`  Số HĐ: ${company.invoices?.length || 0}`);
-        console.log(`  Tồn kho: ${company.tonkhoMain?.length || 0} sản phẩm`);
-        
-        // Log chi tiết hóa đơn
-        if (company.invoices && company.invoices.length > 0) {
-            company.invoices.forEach((inv, idx) => {
-                console.log(`  HĐ ${idx + 1}: ${inv.invoiceInfo.symbol}/${inv.invoiceInfo.number} - ${inv.summary.calculatedTotal}`);
-            });
-        }
-    });
-}
 
 
 function updatePurchaseFileStats(total, success, error, duplicate, stockPosted = 0) {
@@ -769,184 +996,9 @@ function updatePurchaseFileStats(total, success, error, duplicate, stockPosted =
 
 
 
-function showPurchaseSuccessMessage(results) {
-    const message = `
-✅ ĐÃ XỬ LÝ HÓA ĐƠN THÀNH CÔNG!
-
-📊 Kết quả:
-• 🎯 Thành công: ${results.processedCount} hóa đơn
-• 🔄 Trùng lặp: ${results.duplicateCount} hóa đơn  
-• 📦 Đã chuyển kho: ${results.stockPostedCount} hóa đơn
-• ❌ Lỗi: ${results.errorCount} file
-
-💡 Dữ liệu đã được cập nhật tự động vào:
-• Danh sách hóa đơn mua hàng
-• Tồn kho (nếu hợp lệ)
-• Công nợ phải trả
-• Sổ sách kế toán
-    `;
-    
-    alert(message);
-}
-
-// =======================
-// THÊM HÀM LỌC VÀ SẮP XẾP HÓA ĐƠN
-// (Hàm này được gọi bởi sự kiện oninput/onchange của các ô filter)
-// =======================
-function filterAndSortInvoices() {
-    if (!window.currentCompany || !window.hkdData[window.currentCompany]) {
-        loadPurchaseInvoices(); // Render thông báo nếu chưa chọn công ty
-        return;
-    }
-
-    const hkd = window.hkdData[window.currentCompany];
-    let invoices = [...hkd.invoices]; // Tạo bản sao để lọc và sắp xếp
-
-    // 1. LỌC TEXT THỜI GIAN THỰC (Tên NCC, MST NCC, Số HĐ)
-    const searchText = document.getElementById('invoice-filter-text')?.value.toLowerCase().trim() || '';
-
-    if (searchText) {
-        invoices = invoices.filter(invoice => {
-            const nameMatch = invoice.sellerInfo.name.toLowerCase().includes(searchText);
-            const taxCodeMatch = invoice.sellerInfo.taxCode.toLowerCase().includes(searchText);
-            // Kết hợp Số Ký hiệu và Số HĐ
-            const invoiceNumber = `${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}`.toLowerCase();
-            const numberMatch = invoiceNumber.includes(searchText);
-
-            return nameMatch || taxCodeMatch || numberMatch;
-        });
-    }
-
-    // 2. LỌC THỜI GIAN (Từ ngày - Đến ngày)
-    const dateFromInput = document.getElementById('invoice-filter-date-from')?.value;
-    const dateToInput = document.getElementById('invoice-filter-date-to')?.value;
-
-    const dateFrom = dateFromInput ? new Date(dateFromInput) : null;
-    const dateTo = dateToInput ? new Date(dateToInput) : null;
-
-    if (dateFrom || dateTo) {
-        invoices = invoices.filter(invoice => {
-            const invoiceDate = new Date(invoice.invoiceInfo.date);
-            
-            // Đặt giờ về 0 để so sánh chỉ ngày
-            invoiceDate.setHours(0, 0, 0, 0);
-
-            let isAfterFrom = true;
-            if (dateFrom) {
-                dateFrom.setHours(0, 0, 0, 0);
-                isAfterFrom = invoiceDate >= dateFrom;
-            }
-
-            let isBeforeTo = true;
-            if (dateTo) {
-                // Thêm 1 ngày để bao gồm cả ngày To
-                const dateToPlusOne = new Date(dateTo.getTime());
-                dateToPlusOne.setDate(dateToPlusOne.getDate() + 1);
-                dateToPlusOne.setHours(0, 0, 0, 0);
-                
-                isBeforeTo = invoiceDate < dateToPlusOne;
-            }
-
-            return isAfterFrom && isBeforeTo;
-        });
-    }
-
-    // 3. SẮP XẾP: Hóa đơn lỗi (validation === 'error') hiển thị trên cùng
-    invoices.sort((a, b) => {
-        const aIsError = a.status && a.status.validation === 'error';
-        const bIsError = b.status && b.status.validation === 'error';
-
-        if (aIsError && !bIsError) return -1; // Hóa đơn A lỗi, B không lỗi -> A lên trên
-        if (!aIsError && bIsError) return 1;  // Hóa đơn B lỗi, A không lỗi -> B lên trên
-        
-        // Nếu cùng trạng thái lỗi/không lỗi, sắp xếp theo Ngày HĐ mới nhất
-        const dateA = new Date(a.invoiceInfo.date);
-        const dateB = new Date(b.invoiceInfo.date);
-        return dateB.getTime() - dateA.getTime(); // Mới nhất lên trên
-    });
-
-    // Gọi hàm render để hiển thị kết quả đã lọc và sắp xếp
-    loadPurchaseInvoices(invoices);
-}
-window.filterAndSortInvoices = filterAndSortInvoices;
 
 
-// =======================
-// SỬA HÀM LOADPURCHASEINVOICES (ĐỂ NHẬN DỮ LIỆU ĐÃ LỌC VÀ SẮP XẾP)
-// =======================
-function loadPurchaseInvoices() {
-    const invoiceList = document.getElementById('purchase-invoice-list');
-    if (!invoiceList) {
-        console.error('❌ Không tìm thấy danh sách hóa đơn');
-        return;
-    }
 
-    if (!window.currentCompany || !window.hkdData[window.currentCompany]) {
-        invoiceList.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px;">👈 Vui lòng chọn công ty</td></tr>';
-        return;
-    }
-
-    const hkd = window.hkdData[window.currentCompany];
-    const invoices = hkd.invoices || [];
-
-    invoiceList.innerHTML = '';
-
-    if (invoices.length === 0) {
-        invoiceList.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px;">📭 Chưa có hóa đơn mua hàng nào</td></tr>';
-        return;
-    }
-
-    // Sắp xếp hóa đơn theo ngày (mới nhất trước)
-    const sortedInvoices = [...invoices].sort((a, b) => 
-        new Date(b.invoiceInfo.date) - new Date(a.invoiceInfo.date)
-    );
-
-    console.log(`📄 Đang tải ${sortedInvoices.length} hóa đơn`);
-
-    sortedInvoices.forEach((invoice, index) => {
-        const row = document.createElement('tr');
-        
-        // Xác định trạng thái
-        let statusBadge = '';
-        let statusClass = '';
-        
-        if (invoice.status && invoice.status.stockPosted) {
-            statusBadge = '<span class="badge badge-success">✅ Đã nhập kho</span>';
-            statusClass = 'table-success';
-        } else if (invoice.status && invoice.status.validation === 'error') {
-            statusBadge = '<span class="badge badge-danger">❌ Lỗi</span>';
-            statusClass = 'table-danger';
-        } else {
-            statusBadge = '<span class="badge badge-warning">⚠️ Chưa xử lý</span>';
-            statusClass = 'table-warning';
-        }
-
-        row.className = statusClass;
-        row.innerHTML = `
-            <td>${index + 1}</td>
-            <td><strong>${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}</strong></td>
-            <td>${window.formatDate(invoice.invoiceInfo.date)}</td>
-            <td>${invoice.sellerInfo.name}</td>
-            <td><code>${invoice.sellerInfo.taxCode}</code></td>
-            <td style="text-align: right;">${window.formatCurrency(invoice.summary.calculatedTotal)}</td>
-            <td style="text-align: right;">${window.formatCurrency(invoice.summary.calculatedTax)}</td>
-            <td>${statusBadge}</td>
-            <td>
-                <div class="button-group-small">
-                    <button class="btn-sm btn-info" onclick="viewPurchaseInvoiceDetail('${invoice.originalFileId}')">👁️ Xem</button>
-                    ${(!invoice.status || !invoice.status.stockPosted) ? 
-                      `<button class="btn-sm btn-primary" onclick="createPurchaseReceipt('${invoice.originalFileId}')">📦 Tạo PN</button>` : 
-                      ''}
-                </div>
-            </td>
-        `;
-        
-        invoiceList.appendChild(row);
-    });
-    
-    console.log('✅ Đã tải danh sách hóa đơn');
-}
-window.loadPurchaseInvoices = loadPurchaseInvoices;
 
 function loadPayableList() {
     const payableList = document.getElementById('payable-list');
@@ -1084,9 +1136,7 @@ function createPurchaseReceipt(invoiceId) {
     createPurchaseAccountingEntry(invoice);
 
     alert(`✅ Đã tạo phiếu nhập kho ${receipt.id} thành công!\n\n📦 Sản phẩm đã được cập nhật vào tồn kho.`);
-    
-    // Cập nhật giao diện
-    loadPurchaseInvoices();
+
     if (typeof window.renderStock === 'function') window.renderStock();
     
     // Lưu dữ liệu
@@ -1213,7 +1263,6 @@ function renderCompanyListFallback() {
                 window.currentCompany = taxCode;
                 updateCurrentCompanyDisplay();
                 renderCompanyListFallback();
-                loadPurchaseInvoices();
                 loadPayableList();
             }
         });
@@ -1242,7 +1291,6 @@ function printPurchaseInvoice(invoiceId) {
 
 // Exports toàn cục
 window.initMuaHangModule = initMuaHangModule;
-window.loadPurchaseInvoices = loadPurchaseInvoices;
 window.viewPurchaseInvoiceDetail = viewPurchaseInvoiceDetail;
 window.createPurchaseReceipt = createPurchaseReceipt;
 window.printPurchaseInvoices = printPurchaseInvoices;
@@ -1418,8 +1466,6 @@ function saveInvoiceChanges(invoiceId) {
     // Đóng popup
     closeModal();
     
-    // Cập nhật giao diện
-    loadPurchaseInvoices();
     if (typeof window.renderStock === 'function') window.renderStock();
     
     alert('✅ Đã lưu thay đổi thành công!');

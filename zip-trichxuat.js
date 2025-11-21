@@ -7,19 +7,6 @@ function accountingRound(amount) {
 
 
 // =======================
-// Hàm phân loại sản phẩm
-// =======================
-function getProductClassification(category) {
-  const classifications = {
-    'hang_hoa': 'Hàng hóa',
-    'chiet_khau': 'Chiết khấu',
-    'khuyen_mai': 'Khuyến mãi',
-    'dich_vu': 'Dịch vụ'
-  };
-  return classifications[category] || 'Hàng hóa';
-}
-
-// =======================
 // Hàm kiểm tra chênh lệch hóa đơn (CHUẨN KẾ TOÁN)
 // =======================
 function checkInvoiceDifference(invoice) {
@@ -255,14 +242,50 @@ async function processPurchaseInvoices() {
     showProcessingChoiceModal(files);
 }
 
+
+
 // =======================
-// SỬA HÀM HIỂN THỊ MODAL - THÊM DEBUG
+async function startInvoiceProcessing(files, mode) {
+    console.log(`🔄 Bắt đầu xử lý ${files.length} file với chế độ: ${mode}`);
+    
+    try {
+        // Tạo container thống kê
+        createPurchaseStatsContainer();
+        updatePurchaseFileStats(files.length, 0, 0, 0, 0);
+        
+        if (mode === 'immediate') {
+            await processImmediateMode(files);
+        } else {
+            await processBatchMode(files);
+        }
+        
+    } catch (error) {
+        console.error('❌ Lỗi xử lý:', error);
+        alert(`❌ LỖI XỬ LÝ:\n\n${error.message}`);
+    }
+}
+
+// HÀM HIỂN THỊ MODAL - PHIÊN BẢN CHUẨN
 // =======================
 function showProcessingChoiceModal(files) {
+    // KIỂM TRA NẾU ĐÃ CÓ HÀM TỪ muahang.js
+    if (typeof window.showProcessingChoiceModalMuaHang === 'function') {
+        window.showProcessingChoiceModalMuaHang(files);
+        return;
+    }
+    
     const fileCount = files.length;
     
-    console.log('🎪 Bắt đầu hiển thị modal lựa chọn');
+    console.log('🎯 Hiển thị modal lựa chọn xử lý');
     console.log('📊 Số file:', fileCount);
+    
+    // Đảm bảo có hàm closeModal
+    if (typeof closeModal !== 'function') {
+        window.closeModal = function() {
+            const modal = document.getElementById('custom-modal');
+            if (modal) modal.remove();
+        };
+    }
     
     // Đóng modal cũ nếu có
     closeModal();
@@ -275,8 +298,8 @@ function showProcessingChoiceModal(files) {
             </div>
             
             <div class="modal-body">
-                <p style="text-align: center; margin-bottom: 20px; font-size: 16px;">
-                    Đã chọn <strong style="color: #007bff;">${fileCount} file</strong> hóa đơn
+                <p class="file-count-info">
+                    Đã chọn <strong>${fileCount} file</strong> hóa đơn
                 </p>
                 
                 <div class="mode-options">
@@ -318,10 +341,10 @@ function showProcessingChoiceModal(files) {
                 </div>
                 
                 <div class="modal-actions">
-                    <button id="confirm-processing" class="btn-success">
+                    <button id="confirm-processing" class="btn btn-success">
                         🚀 BẮT ĐẦU XỬ LÝ
                     </button>
-                    <button class="btn-secondary" onclick="closeModal()">
+                    <button class="btn btn-secondary" onclick="closeModal()">
                         ❌ HỦY
                     </button>
                 </div>
@@ -329,21 +352,9 @@ function showProcessingChoiceModal(files) {
         </div>
     `;
     
-    // Sử dụng ID 'custom-modal' để nhất quán
     const modal = document.createElement('div');
     modal.id = 'custom-modal';
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.6);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-    `;
+    modal.className = 'modal-overlay'; // Sử dụng class từ CSS
     modal.innerHTML = modalContent;
     document.body.appendChild(modal);
     
@@ -357,43 +368,70 @@ function showProcessingChoiceModal(files) {
         });
     });
     
-    // Xử lý khi bấm bắt đầu - SỬA LẠI
+    // Xử lý khi bấm bắt đầu
     document.getElementById('confirm-processing').addEventListener('click', function() {
         const selectedMode = document.querySelector('input[name="processing-mode"]:checked').value;
         console.log('🚀 Người dùng chọn mode:', selectedMode);
         
-        // Đóng popup trước khi xử lý
         closeModal();
-        
-        // Bắt đầu xử lý hóa đơn
         startInvoiceProcessing(files, selectedMode);
     });
 }
 
-// =======================
-async function startInvoiceProcessing(files, mode) {
-    console.log(`🔄 Bắt đầu xử lý ${files.length} file với chế độ: ${mode}`);
-    
-    try {
-        // Tạo container thống kê
-        createPurchaseStatsContainer();
-        updatePurchaseFileStats(files.length, 0, 0, 0, 0);
-        
-        if (mode === 'immediate') {
-            await processImmediateMode(files);
-        } else {
-            await processBatchMode(files);
-        }
-        
-    } catch (error) {
-        console.error('❌ Lỗi xử lý:', error);
-        alert(`❌ LỖI XỬ LÝ:\n\n${error.message}`);
+function renderModePreview(mode, fileCount) {
+    if (mode === 'immediate') {
+        return `
+            <div class="preview-immediate">
+                <h4>⚡ Sẽ xử lý ngay:</h4>
+                <ul>
+                    <li>Hiển thị popup sửa lỗi trực tiếp</li>
+                    <li>Cập nhật ngay vào Mua Hàng & Kho</li>
+                    <li>Phù hợp cho <strong>${fileCount} file</strong></li>
+                    <li>Hoàn thành ngay trong vài phút</li>
+                </ul>
+            </div>
+        `;
+    } else {
+        return `
+            <div class="preview-batch">
+                <h4>📦 Sẽ xử lý hàng loạt:</h4>
+                <ul>
+                    <li>Chuyển sang tab "NHẬP HÓA ĐƠN ĐẦU VÀO"</li>
+                    <li>Quản lý tập trung tất cả hóa đơn</li>
+                    <li>Xử lý <strong>${fileCount} file</strong> theo lô</li>
+                    <li>Phù hợp cho số lượng lớn</li>
+                </ul>
+            </div>
+        `;
     }
 }
 
 // =======================
-// CHẾ ĐỘ XỬ LÝ NGAY - SỬA ĐỂ PHÂN BIỆT
+// HÀM XỬ LÝ LỖI TRONG CHẾ ĐỘ NGAY
 // =======================
+async function handleImmediateErrors(results) {
+    console.log('🔧 Bắt đầu xử lý lỗi trong chế độ ngay');
+    
+    if (results.errorCount === 1) {
+        // 1 HĐ lỗi → hiển thị popup sửa ngay
+        const userChoice = confirm(`⚠️ Phát hiện 1 hóa đơn có chênh lệch.\n\nBạn có muốn mở popup chỉnh sửa ngay không?\n\nChọn "OK" để sửa ngay, "Cancel" để chuyển sang tab xử lý.`);
+        
+        if (userChoice) {
+            console.log('🎯 Người dùng chọn sửa hóa đơn lỗi ngay');
+            // TODO: Lấy invoiceId từ results và gọi popup
+            // Tạm thời thông báo
+            alert('🛠️ Popup chỉnh sửa đã sẵn sàng! Trong tab "Xử Lý Hóa Đơn Lỗi", nhấn nút "Sửa" để mở popup.');
+            switchToErrorInvoiceTab();
+        } else {
+            console.log('📦 Người dùng chọn chuyển tab');
+            switchToErrorInvoiceTab();
+        }
+    } else {
+        // Nhiều HĐ lỗi → chuyển tab
+        alert(`⚠️ Phát hiện ${results.errorCount} hóa đơn có chênh lệch.\n\nCác hóa đơn này sẽ được chuyển sang tab xử lý chuyên dụng.`);
+        switchToErrorInvoiceTab();
+    }
+}
 async function processImmediateMode(files) {
     console.log('⚡ Bắt đầu chế độ XỬ LÝ NGAY');
     showLoading('Đang trích xuất và kiểm tra...');
@@ -459,33 +497,6 @@ async function processImmediateMode(files) {
     } catch (error) {
         console.error('❌ Lỗi trong processImmediateMode:', error);
         throw error;
-    }
-}
-
-// =======================
-// HÀM XỬ LÝ LỖI TRONG CHẾ ĐỘ NGAY
-// =======================
-async function handleImmediateErrors(results) {
-    console.log('🔧 Bắt đầu xử lý lỗi trong chế độ ngay');
-    
-    if (results.errorCount === 1) {
-        // 1 HĐ lỗi → hiển thị popup sửa ngay
-        const userChoice = confirm(`⚠️ Phát hiện 1 hóa đơn có chênh lệch.\n\nBạn có muốn mở popup chỉnh sửa ngay không?\n\nChọn "OK" để sửa ngay, "Cancel" để chuyển sang tab xử lý.`);
-        
-        if (userChoice) {
-            console.log('🎯 Người dùng chọn sửa hóa đơn lỗi ngay');
-            // TODO: Lấy invoiceId từ results và gọi popup
-            // Tạm thời thông báo
-            alert('🛠️ Popup chỉnh sửa đã sẵn sàng! Trong tab "Xử Lý Hóa Đơn Lỗi", nhấn nút "Sửa" để mở popup.');
-            switchToErrorInvoiceTab();
-        } else {
-            console.log('📦 Người dùng chọn chuyển tab');
-            switchToErrorInvoiceTab();
-        }
-    } else {
-        // Nhiều HĐ lỗi → chuyển tab
-        alert(`⚠️ Phát hiện ${results.errorCount} hóa đơn có chênh lệch.\n\nCác hóa đơn này sẽ được chuyển sang tab xử lý chuyên dụng.`);
-        switchToErrorInvoiceTab();
     }
 }
 // =======================
@@ -757,114 +768,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 
-// =======================
-// HÀM XỬ LÝ FILE MUA HÀNG (THAY THẾ handleZipFiles)
-// =======================
-async function processPurchaseFiles(files) {
-    let processedCount = 0;
-    let duplicateCount = 0;
-    let errorCount = 0;
-    let stockPostedCount = 0;
-    
-    const fileResults = [];
-    
-    for (const file of files) {
-        if (!file.name.toLowerCase().endsWith('.zip') && !file.name.toLowerCase().endsWith('.xml')) {
-            fileResults.push({ file: file.name, status: 'error', message: 'File không phải ZIP/XML' });
-            errorCount++;
-            continue;
-        }
-        
-        let invoice = null;
-        try {
-            // Sử dụng hàm trích xuất từ zip-trichxuat.js
-            invoice = await window.extractInvoiceFromZip(file);
-        } catch (error) {
-            fileResults.push({ file: file.name, status: 'error', message: error.message });
-            errorCount++;
-            continue;
-        }
-
-        if (!invoice || !invoice.products || invoice.products.length === 0) {
-            fileResults.push({ file: file.name, status: 'error', message: 'Không có sản phẩm' });
-            errorCount++;
-            continue;
-        }
-        
-        try {
-            // 🔥 SỬ DỤNG MST NGƯỜI MUA
-            const taxCode = invoice.buyerInfo.taxCode || 'UNKNOWN';
-            const companyName = invoice.buyerInfo.name || taxCode;
-            
-            console.log(`🔍 Phát hiện hóa đơn: MST=${taxCode}, Tên=${companyName}`);
-            
-            // TẠO/GOM CÔNG TY
-            ensureHkdData(taxCode, companyName);
-            
-            // KIỂM TRA TRÙNG
-            if (isDuplicate(invoice, taxCode)) {
-                console.log(`🚫 BỎ QUA HĐ TRÙNG: ${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}`);
-                fileResults.push({ file: file.name, status: 'duplicate', message: 'Hóa đơn trùng' });
-                duplicateCount++;
-                continue;
-            }
-            
-            console.log(`✅ THÊM HĐ MỚI: ${invoice.invoiceInfo.symbol}/${invoice.invoiceInfo.number}`);
-            
-            // THIẾT LẬP TRẠNG THÁI
-            invoice.status = {
-                validation: 'ok', // Tạm thời cho là OK
-                stockPosted: false,
-                difference: 0,
-                calculatedTotal: invoice.summary.calculatedTotal,
-                xmlTotal: invoice.summary.totalAfterTax
-            };
-            
-            // THÊM METADATA
-            invoice.uniqueKey = `${invoice.invoiceInfo.mccqt}_${invoice.invoiceInfo.symbol}_${invoice.invoiceInfo.number}`;
-            invoice.extractedAt = new Date().toISOString();
-            invoice.sourceFile = file.name;
-            
-            // CHUYỂN TỒN KHO
-            updateStock(taxCode, invoice);
-            invoice.status.stockPosted = true;
-            stockPostedCount++;
-            
-            // THÊM VÀO DANH SÁCH HÓA ĐƠN
-            window.hkdData[taxCode].invoices.push(invoice);
-            
-            fileResults.push({ 
-                file: file.name, 
-                status: 'success', 
-                message: `Thành công - Đã chuyển tồn kho` 
-            });
-            processedCount++;
-            
-            console.log(`[NHẬP HĐ] MST=${taxCode}, HĐ=${invoice.uniqueKey}`);
-            
-        } catch (error) {
-            fileResults.push({ file: file.name, status: 'error', message: error.message });
-            errorCount++;
-            console.error('Lỗi xử lý file:', file.name, error);
-        }
-    }
-    
-    console.log(`📊 Kết quả: ${processedCount} thành công, ${duplicateCount} trùng, ${errorCount} lỗi`);
-    
-    return { 
-        processedCount, 
-        duplicateCount, 
-        errorCount, 
-        stockPostedCount,
-        fileResults 
-    };
-}
-
-// =======================
-// CÁC HÀM HIỆN CÓ (GIỮ NGUYÊN)
-// =======================
-// Giữ nguyên các hàm: createPurchaseStatsContainer, updatePurchaseFileStats, 
-// showPurchaseFileResults, showPurchaseFinalResult, debugCompanyData, etc.
 
 // =======================
 // Hàm loại bỏ dấu tiếng Việt
@@ -1252,53 +1155,6 @@ function parseXmlInvoice(xmlContent) {
   };
 }
 
-// =======================
-// Cập nhật tồn kho với phân loại CHÍNH XÁC
-// =======================
-function updateStock(taxCode, invoice) {
-  ensureHkdData(taxCode);
-  const hkd = hkdData[taxCode];
-  
-  console.log('🔄 Bắt đầu cập nhật tồn kho với phân loại:');
-  
-  invoice.products.forEach(item => {
-    console.log(`📦 Xử lý: ${item.name} | Category: ${item.category} | Classification: ${item.classification}`);
-    
-    const consistentMSP = item.msp;
-    
-    let stockItem = hkd.tonkhoMain.find(p => p.msp === consistentMSP);
-    
-    if (stockItem) {
-      // Cộng dồn số lượng, giá trị và chiết khấu
-      stockItem.quantity += parseFloat(item.quantity);
-      stockItem.amount += item.amount;
-      stockItem.discount = (parseFloat(stockItem.discount) || 0) + (parseFloat(item.discount) || 0);
-      
-      console.log(`✅ Cộng dồn tồn kho: ${item.name} | SL: +${item.quantity} | CK: +${item.discount}`);
-    } else {
-      // Thêm mới với đầy đủ thông tin phân loại
-      hkd.tonkhoMain.push({
-        msp: consistentMSP,
-        code: item.msp,
-        name: item.name,
-        unit: item.unit,
-        quantity: parseFloat(item.quantity),
-        amount: item.amount,
-        discount: parseFloat(item.discount) || 0,
-        category: item.category,           // 🟡 Lưu category
-        classification: item.classification, // 🟡 Lưu classification
-        tchat: item.tchat
-      });
-      console.log(`✅ Thêm mới tồn kho: ${item.name} | Phân loại: ${item.classification}`);
-    }
-  });
-  
-  console.log('📊 Tồn kho sau cập nhật:', hkd.tonkhoMain);
-}
-
-// =======================
-// Kiểm tra trùng HĐ
-// =======================
 
 
 // =======================

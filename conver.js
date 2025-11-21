@@ -62,7 +62,45 @@
             };
             reader.readAsArrayBuffer(file);
         });
-
+// HÀM TẢI FILE MẪU MISA ĐƠN GIẢN
+// HÀM TẢI FILE MẪU MISA ĐƠN GIẢN
+function downloadMISASample() {
+    // Tạo workbook Excel
+    const wb = XLSX.utils.book_new();
+    
+    // Dữ liệu mẫu - chỉ 2 cột: Mã hàng và Tên hàng
+    const misaSampleData = [
+        ['Mã hàng', 'Tên hàng'],
+        ['SPRITE', 'Sprite lon'],
+        ['NCCma', 'Nước suối Lemona'],
+        ['STINGD', 'Sting Dâu tây đỏ Lon 520x24 Tray Lốc 8'],
+        ['AQUA', 'Nước suối Aquafina 500ml'],
+        ['COCA', 'Coca Cola lon 330ml'],
+        ['PEPSI', 'Pepsi chai 1.5L'],
+        ['TIGER', 'Bia Tiger lon 330ml'],
+        ['HEINE', 'Bia Heineken chai 330ml'],
+        ['REDBULL', 'Red Bull 250ml'],
+        ['TWISTER', 'Nước ép trái cây Twister 1L']
+    ];
+    
+    // Tạo worksheet
+    const ws = XLSX.utils.aoa_to_sheet(misaSampleData);
+    
+    // Đặt độ rộng cột cho đẹp
+    ws['!cols'] = [
+        { wch: 15 },  // Mã hàng
+        { wch: 40 }   // Tên hàng
+    ];
+    
+    // Thêm worksheet vào workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'DanhMucHangHoa');
+    
+    // Tải file về
+    XLSX.writeFile(wb, 'MAU_FILE_MISA.xlsx');
+    
+    // Thông báo
+    alert('✅ Đã tải file MISA mẫu thành công!');
+}
         // HÀM PARSE DỮ LIỆU TỪ FILE MISA
         function parseMISAFileData(jsonData) {
             const products = [];

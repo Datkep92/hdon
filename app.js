@@ -1074,47 +1074,40 @@ function showModal(title, content) {
 
     const modal = document.createElement('div');
     modal.id = 'custom-modal';
-    modal.style.position = 'fixed';
-    modal.style.top = '0';
-    modal.style.left = '0';
-    modal.style.width = '100%';
-    modal.style.height = '100%';
-    modal.style.backgroundColor = 'rgba(0,0,0,0.6)';
-    modal.style.display = 'flex';
-    modal.style.justifyContent = 'center';
-    modal.style.alignItems = 'center';
-    modal.style.zIndex = '1000';
+    
+    // Giữ nguyên các style cho modal overlay (vị trí cố định, màu nền, căn giữa)
+    modal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(0,0,0,0.6); display: flex; justify-content: center;
+        align-items: center; z-index: 1000;
+    `;
 
-    // Xác định kích thước modal dựa trên tiêu đề
-    const isEditModal = title.includes('Chỉnh Sửa Hóa Đơn') || title.includes('Chi Tiết Hóa Đơn');
+    // Xác định loại modal để thêm CLASS tương ứng
+    const isInvoiceDetail = title.includes('Chỉnh Sửa Hóa Đơn') || title.includes('Chi Tiết Hóa Đơn');
     
     const modalContent = document.createElement('div');
+    modalContent.id = 'modal-content'; // Thêm ID mới cho nội dung để dễ dàng tùy chỉnh CSS
+    
+    // 1. Thêm CLASS dựa trên loại modal
+    if (isInvoiceDetail) {
+        modalContent.classList.add('modal-invoice-detail'); // Modal lớn
+    } else {
+        modalContent.classList.add('modal-standard-size'); // Modal tiêu chuẩn
+    }
+
+    // 2. Chỉ giữ lại các style cơ bản (Không liên quan đến kích thước)
     modalContent.style.backgroundColor = 'white';
     modalContent.style.padding = '25px';
     modalContent.style.borderRadius = '10px';
     modalContent.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
     
-    if (isEditModal) {
-        // Modal lớn 90% cho chỉnh sửa hóa đơn
-        modalContent.style.width = '95%';
-        modalContent.style.height = '95%';
-        modalContent.style.maxWidth = '95%';
-        modalContent.style.maxHeight = '95%';
-        modalContent.style.overflow = 'auto';
-    } else {
-        // Modal thường cho các popup khác
-        modalContent.style.maxWidth = '90%';
-        modalContent.style.maxHeight = '90%';
-        modalContent.style.overflow = 'auto';
-        modalContent.style.width = '700px';
-    }
-
+    // 3. Xóa style inline về cuộn khỏi modal-body
     modalContent.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid var(--primary); padding-bottom: 15px;">
+        <div class="modal-header-container" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid var(--primary); padding-bottom: 15px;">
             <h3 style="margin: 0; color: var(--primary); font-size: 24px; font-weight: bold;">${title}</h3>
             <button id="close-modal" style="background: var(--danger); color: white; border: none; font-size: 20px; cursor: pointer; padding: 8px 15px; border-radius: 5px; transition: background 0.3s;">&times;</button>
         </div>
-        <div class="modal-body" style="${isEditModal ? 'max-height: calc(95vh - 150px); overflow-y: auto; padding: 10px;' : ''}">${content}</div>
+        <div class="modal-body">${content}</div> 
     `;
 
     modal.appendChild(modalContent);
@@ -4166,8 +4159,60 @@ function addHeaderStyles() {
 // Hàm khởi tạo module xử lý hóa đơn lỗi (fallback)
 if (typeof window.initXuLyHoaDonLoiModule === 'undefined') {
     window.initXuLyHoaDonLoiModule = function() {
-        console.log('🔄 Đang khởi tạo module Xử Lý Hóa Đơn Lỗi...');
-        if (typeof window.renderInvoices === 'function') {
+        console.log('🔄 Đang khởi tạo module Xử Lý Hóa Đơn Lỗi (Fallback)...');
+        
+        // KIỂM TRA VÀ TẠO CONTAINER NẾU CHƯA CÓ
+        const tabContent = document.getElementById('xu-ly-hoa-don-loi');
+        if (!tabContent) {
+            console.error('❌ Tab xu-ly-hoa-don-loi không tồn tại');
+            return;
+        }
+        
+        let container = document.getElementById('error-invoice-list');
+        if (!container) {
+            // Tạo container cho hóa đơn lỗi
+            const cardBody = tabContent.querySelector('.card-body');
+            if (cardBody) {
+                container = document.createElement('div');
+                container.id = 'error-invoice-list';
+                container.className = 'table-responsive';
+                container.innerHTML = `
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>Số HĐ</th>
+                                <th>Ngày</th>
+                                <th>Nhà CC</th>
+                                <th>MST</th>
+                                <th class="text-right">Tổng tiền</th>
+                                <th class="text-right">Chênh lệch</th>
+                                <th>Trạng thái</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="9" style="text-align: center; padding: 20px;">
+                                    📭 Chưa có hóa đơn lỗi nào
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `;
+                cardBody.appendChild(container);
+                console.log('✅ Đã tạo container error-invoice-list');
+            }
+        }
+        
+        // GỌI HÀM RENDER PHÙ HỢP
+        if (typeof window.renderErrorInvoices === 'function') {
+            window.renderErrorInvoices();
+        } else if (typeof window.unifiedRenderInvoices === 'function') {
+            window.unifiedRenderInvoices('', 'error-invoice-list', 'error');
+        } else if (typeof window.renderInvoices === 'function') {
+            // Fallback cuối cùng - thử với container mặc định
+            console.warn('⚠️ Sử dụng renderInvoices fallback');
             window.renderInvoices();
         }
     };

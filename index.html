@@ -159,7 +159,36 @@
     </div>
 </div>
         </div>
-        
+        <div id="xu-ly-hoa-don-loi" class="tab-content">
+    <div class="card">
+        <div class="card-header">
+            <h4>📋 Danh Sách Hóa Đơn Cần Xử Lý</h4>
+        </div>
+        <div class="card-body">
+            <!-- THÊM CONTAINER NÀY -->
+            <div id="error-invoice-list" class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Số HĐ</th>
+                            <th>Ngày</th>
+                            <th>Nhà CC</th>
+                            <th>MST</th>
+                            <th class="text-right">Tổng tiền</th>
+                            <th class="text-right">Chênh lệch</th>
+                            <th>Trạng thái</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Nội dung render bằng JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
         <!-- Các tab khác giữ nguyên -->
         <div class="tab-content active" id="so-du-dau-ky">
             <!-- Nội dung tab Số Dư Đầu Kỳ (giữ nguyên) -->
@@ -221,19 +250,7 @@
                 <div class="card">
                     <div class="card-header">2. Danh Sách Hóa Đơn Mua Hàng</div>
                     <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>STT</th>
-                                <th>Số HĐ</th>
-                                <th>Ngày</th>
-                                <th>Nhà cung cấp</th>
-                                <th>MST NCC</th>
-                                <th>Tổng tiền</th>
-                                <th>Thuế GTGT</th>
-                                <th>Trạng thái</th>
-                                <th>Thao tác</th>
-                            </tr>
-                        </thead>
+                        
                         <tbody id="purchase-invoice-list">
                             <tr><td colspan="9" style="text-align: center;">Chưa có hóa đơn mua hàng</td></tr>
                         </tbody>
@@ -860,20 +877,23 @@
         </div>
     </div>
 
-    <script src="zip-trichxuat.js"></script>
-    <script src="xulyhoadonloi.js"></script>
-    <script src="hoadon.js"></script>
-    <script src="sodudauky.js"></script>
-    <script src="muahang.js"></script>
-    <script src="khohang.js"></script>
-    <script src="banhang.js"></script>
-     <script src="auto-export-scheduler.js"></script>
-    <script src="khachhang-ncc.js"></script>
-    <script src="smart-sale-floating.js"></script>
-    <script src="tiencongno.js"></script>
-    <script src="thuebaocao.js"></script>
-    <script src="sosach.js"></script>
-    <script src="app.js"></script>
-    <script src="conver.js"></script>
+   <!-- Load core fixes đầu tiên -->
+<script src="core-fixes.js"></script>
+<script src="zip-trichxuat.js"></script>
+<script src="hoadon.js"></script>
+<script src="muahang.js"></script>
+<!-- Các file khác giữ nguyên -->
+<script src="xulyhoadonloi.js"></script>
+<script src="sodudauky.js"></script>
+<script src="khohang.js"></script>
+<script src="banhang.js"></script>
+<script src="auto-export-scheduler.js"></script>
+<script src="khachhang-ncc.js"></script>
+<script src="smart-sale-floating.js"></script>
+<script src="tiencongno.js"></script>
+<script src="thuebaocao.js"></script>
+<script src="sosach.js"></script>
+<script src="app.js"></script>
+<script src="conver.js"></script>
 </body>
 </html>
