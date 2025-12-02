@@ -1,6 +1,7 @@
 // BIẾN TOÀN CỤC
         let vnptData = [];
         let misaProducts = [];
+        let misaCustomers = [];  // THÊM BIẾN NÀY
         let conversionResult = null;
 
         // XỬ LÝ UPLOAD FILE VNPT
@@ -30,39 +31,52 @@
         });
 
         // XỬ LÝ UPLOAD FILE MAPPING MISA
-        document.getElementById('misaMappingFile').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+document.getElementById('misaMappingFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(sheet);
             
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(sheet);
-                    
-                    misaProducts = parseMISAFileData(jsonData);
-                    
-                    const status = document.getElementById('mappingStatus');
-                    if (misaProducts.length > 0) {
-                        status.innerHTML = `<div class="success">✅ Đã tải ${misaProducts.length} sản phẩm từ file MISA</div>`;
-                    } else {
-                        status.innerHTML = `<div class="warning">⚠️ Không tìm thấy dữ liệu mã hàng. Kiểm tra cột "Mã hàng" và "Tên hàng"</div>`;
-                    }
-                    
-                    updateMappingPreview();
-                    checkProcessReady();
-                    
-                } catch (error) {
-                    console.error('Lỗi đọc file MISA:', error);
-                    document.getElementById('mappingStatus').innerHTML = 
-                        `<div class="error">❌ Lỗi đọc file MISA: ${error.message}</div>`;
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        });
-// HÀM TẢI FILE MẪU MISA ĐƠN GIẢN
+            // Parse dữ liệu
+            const misaData = parseMISAFileData(jsonData);
+            
+            // Gán vào biến toàn cục
+            misaProducts = misaData.products || [];
+            misaCustomers = misaData.customers || [];
+            
+            // Hiển thị kết quả
+            const status = document.getElementById('mappingStatus');
+            let statusHTML = '';
+            
+            if (misaProducts.length > 0) {
+                statusHTML += `<div class="success">✅ Đã tải ${misaProducts.length} sản phẩm từ file MISA</div>`;
+            } else {
+                statusHTML += `<div class="warning">⚠️ Không tìm thấy dữ liệu sản phẩm</div>`;
+            }
+            
+            if (misaCustomers.length > 0) {
+                statusHTML += `<div class="success">✅ Đã tải ${misaCustomers.length} khách hàng từ file MISA</div>`;
+            }
+            
+            status.innerHTML = statusHTML;
+            
+            updateMappingPreview();
+            checkProcessReady();
+            
+        } catch (error) {
+            console.error('Lỗi đọc file MISA:', error);
+            document.getElementById('mappingStatus').innerHTML = 
+                `<div class="error">❌ Lỗi đọc file MISA: ${error.message}</div>`;
+        }
+    };
+    reader.readAsArrayBuffer(file);
+});
 // HÀM TẢI FILE MẪU MISA ĐƠN GIẢN
 function downloadMISASample() {
     // Tạo workbook Excel
@@ -102,24 +116,42 @@ function downloadMISASample() {
     alert('✅ Đã tải file MISA mẫu thành công!');
 }
         // HÀM PARSE DỮ LIỆU TỪ FILE MISA
-        function parseMISAFileData(jsonData) {
-            const products = [];
-            
-            jsonData.forEach(row => {
-                // Tìm cột mã hàng và tên hàng (case insensitive)
-                const code = findColumnValue(row, ['mã hàng', 'mahang', 'code', 'mã']);
-                const name = findColumnValue(row, ['tên hàng', 'tenhang', 'name', 'tên', 'tên sản phẩm']);
-                
-                if (code && name) {
-                    products.push({
-                        code: code.toString().trim(),
-                        name: name.toString().trim()
-                    });
-                }
+        // HÀM PARSE DỮ LIỆU TỪ FILE MISA
+function parseMISAFileData(jsonData) {
+    const products = [];
+    const customers = [];
+    
+    jsonData.forEach(row => {
+        // Tìm cột sản phẩm
+        const productCode = findColumnValue(row, ['mã sp', 'masp', 'mã hàng', 'mahang', 'code']);
+        const productName = findColumnValue(row, ['tên sp', 'tensp', 'tên hàng', 'tenhang', 'name']);
+        
+        // Tìm cột khách hàng
+        const customerCode = findColumnValue(row, ['mã kh', 'makh', 'mã khách hàng', 'makhachhang']);
+        const customerName = findColumnValue(row, ['tên kh', 'tenkh', 'tên khách hàng', 'tenkhachhang']);
+        
+        // Lưu sản phẩm nếu có
+        if (productCode && productName) {
+            products.push({
+                code: productCode.toString().trim(),
+                name: productName.toString().trim()
             });
-            
-            return products;
         }
+        
+        // Lưu khách hàng nếu có
+        if (customerCode && customerName) {
+            customers.push({
+                code: customerCode.toString().trim(),
+                name: customerName.toString().trim()
+            });
+        }
+    });
+    
+    return {
+        products: products,
+        customers: customers
+    };
+}
 
         // HÀM TÌM GIÁ TRỊ CỘT (case insensitive)
         function findColumnValue(row, possibleColumnNames) {
@@ -134,81 +166,167 @@ function downloadMISASample() {
         }
 
         // XEM TRƯỚC MAPPING
-        function updateMappingPreview() {
-            const preview = document.getElementById('mappingPreview');
-            
-            if (misaProducts.length === 0) {
-                preview.innerHTML = '<div class="info">Chưa có dữ liệu mapping</div>';
-                return;
-            }
-            
-            let html = `
-                <div class="success">📋 Danh sách mã hàng đã tải:</div>
-                <table>
-                    <tr><th>Mã hàng</th><th>Tên hàng</th></tr>
+function updateMappingPreview() {
+    const preview = document.getElementById('mappingPreview');
+    
+    if (misaProducts.length === 0) {
+        preview.innerHTML = '<div class="info">Chưa có dữ liệu mapping</div>';
+        return;
+    }
+    
+    let html = `
+        <div class="success">📋 Danh sách mã hàng đã tải:</div>
+        <table>
+            <tr><th>Mã hàng</th><th>Tên hàng</th></tr>
+    `;
+    
+    // Hiển thị tối đa 10 sản phẩm để preview
+    misaProducts.slice(0, 10).forEach(product => {
+        html += `
+            <tr>
+                <td><strong>${product.code}</strong></td>
+                <td>${product.name}</td>
+            </tr>
+        `;
+    });
+    
+    html += '</table>';
+    
+    if (misaProducts.length > 10) {
+        html += `<div class="info">... và ${misaProducts.length - 10} sản phẩm khác</div>`;
+    }
+    
+    // Hiển thị thêm khách hàng nếu có
+    if (misaCustomers.length > 0) {
+        html += `
+            <div class="success" style="margin-top: 20px;">👥 Danh sách khách hàng:</div>
+            <table>
+                <tr><th>Mã KH</th><th>Tên KH</th></tr>
+        `;
+        
+        misaCustomers.slice(0, 5).forEach(customer => {
+            html += `
+                <tr>
+                    <td><strong>${customer.code}</strong></td>
+                    <td>${customer.name}</td>
+                </tr>
             `;
-            
-            // Hiển thị tối đa 10 sản phẩm để preview
-            misaProducts.slice(0, 10).forEach(product => {
-                html += `
-                    <tr>
-                        <td><strong>${product.code}</strong></td>
-                        <td>${product.name}</td>
-                    </tr>
-                `;
-            });
-            
-            html += '</table>';
-            
-            if (misaProducts.length > 10) {
-                html += `<div class="info">... và ${misaProducts.length - 10} sản phẩm khác</div>`;
-            }
-            
-            preview.innerHTML = html;
+        });
+        
+        html += '</table>';
+        
+        if (misaCustomers.length > 5) {
+            html += `<div class="info">... và ${misaCustomers.length - 5} khách hàng khác</div>`;
         }
+    }
+    
+    preview.innerHTML = html;
+}
 
         // KIỂM TRA SẴN SÀNG XỬ LÝ
-        function checkProcessReady() {
-            const btn = document.getElementById('processBtn');
-            const vnptReady = vnptData.length > 0;
-            const misaReady = misaProducts.length > 0;
-            
-            btn.disabled = !(vnptReady && misaReady);
-            
-            if (vnptReady && misaReady) {
-                document.getElementById('processResult').innerHTML = 
-                    '<div class="success">✅ Đã sẵn sàng xử lý</div>';
+function checkProcessReady() {
+    const btn = document.getElementById('processBtn');
+    const vnptReady = vnptData.length > 0;
+    const misaReady = misaProducts.length > 0;  // Chỉ cần sản phẩm là đủ
+    
+    btn.disabled = !(vnptReady && misaReady);
+    
+    if (vnptReady && misaReady) {
+        document.getElementById('processResult').innerHTML = 
+            '<div class="success">✅ Đã sẵn sàng xử lý</div>';
+    }
+}
+// HÀM MAPPING KHÁCH HÀNG
+function mapCustomer(vnptCustomerName) {
+    // Nếu không có tên khách hàng
+    if (!vnptCustomerName || vnptCustomerName.trim() === '') {
+        return {
+            code: 'KH0001',
+            name: 'Khách hàng',
+            isNew: true
+        };
+    }
+    
+    const customerName = vnptCustomerName.trim();
+    
+    // Tìm trong danh sách MISA nếu có
+    if (misaCustomers && misaCustomers.length > 0) {
+        // Tìm chính xác
+        for (const misaCustomer of misaCustomers) {
+            if (misaCustomer.name && 
+                misaCustomer.name.trim().toLowerCase() === customerName.toLowerCase()) {
+                return {
+                    code: misaCustomer.code,
+                    name: misaCustomer.name,
+                    isNew: false
+                };
             }
         }
-
-        // XỬ LÝ CHÍNH
-        document.getElementById('processBtn').addEventListener('click', function() {
-            console.log('processConversion called');
-            console.log('vnptData:', vnptData);
-            console.log('misaProducts:', misaProducts);
-            
-            if (vnptData.length === 0 || misaProducts.length === 0) {
-                alert('Vui lòng upload file VNPT và file mã hàng MISA');
-                return;
+        
+        // Tìm gần đúng
+        for (const misaCustomer of misaCustomers) {
+            if (misaCustomer.name && 
+                customerName.toLowerCase().includes(misaCustomer.name.toLowerCase())) {
+                return {
+                    code: misaCustomer.code,
+                    name: misaCustomer.name,
+                    isNew: false
+                };
             }
-            
-            try {
-                document.getElementById('processResult').innerHTML = '<div class="info">🔄 Đang xử lý...</div>';
-                
-                conversionResult = convertVNPTtoMISA(vnptData, misaProducts);
-                displayResults(conversionResult);
-                document.getElementById('downloadBtn').disabled = false;
-                
-                document.getElementById('processResult').innerHTML = 
-                    '<div class="success">✅ Xử lý thành công!</div>';
-                    
-            } catch (error) {
-                console.error('Conversion error:', error);
-                document.getElementById('processResult').innerHTML = 
-                    `<div class="error">❌ Lỗi khi xử lý: ${error.message}</div>`;
-            }
-        });
+        }
+    }
+    
+    // Không tìm thấy -> tạo mã mới
+    const newCode = generateCustomerCodeFromName(customerName);
+    
+    return {
+        code: newCode,
+        name: customerName,
+        isNew: true
+    };
+}
 
+// HÀM TẠO MÃ KHÁCH HÀNG TỪ TÊN
+function generateCustomerCodeFromName(customerName) {
+    if (!customerName) return 'KH0001';
+    
+    // Lấy 5 ký tự từ tên
+    let code = customerName
+        .toUpperCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Z0-9]/g, '')
+        .substring(0, 5);
+    
+    if (!code) code = 'KH';
+    
+    // Đảm bảo 5 ký tự
+    code = code.padEnd(5, 'X').substring(0, 5);
+    
+    return code;
+}
+// XỬ LÝ CHÍNH
+document.getElementById('processBtn').addEventListener('click', function() {
+    if (vnptData.length === 0 || misaProducts.length === 0) {
+        alert('Vui lòng upload file VNPT và file mã hàng MISA');
+        return;
+    }
+    
+    try {
+        document.getElementById('processResult').innerHTML = '<div class="info">🔄 Đang xử lý...</div>';
+        
+        conversionResult = convertVNPTtoMISA(vnptData, misaProducts, misaCustomers);
+        displayResults(conversionResult);
+        document.getElementById('downloadBtn').disabled = false;
+        
+        document.getElementById('processResult').innerHTML = 
+            '<div class="success">✅ Xử lý thành công!</div>';
+            
+    } catch (error) {
+        console.error('Conversion error:', error);
+        document.getElementById('processResult').innerHTML = 
+            `<div class="error">❌ Lỗi khi xử lý: ${error.message}</div>`;
+    }
+});
 
 // THÊM HÀM formatDateForMISA VÀO
 function formatDateForMISA(dateStr) {
@@ -693,81 +811,69 @@ function mapVNPTDataRow(rowValues, taxRate) {
     return mappedRow;
 }
 // CẬP NHẬT HÀM CHUYỂN ĐỔI - SỬ DỤNG THUẾ SUẤT TỪ VIETTEL
-// CẬP NHẬT HÀM CHUYỂN ĐỔI - GIỮ NGUYÊN SỐ LIỆU TỪ FILE + THÊM MÃ KHÁCH HÀNG
-function convertVNPTtoMISA(vnptData, misaProducts) {
+// CẬP NHẬT HÀM CHUYỂN ĐỔI
+function convertVNPTtoMISA(vnptData, misaProducts, misaCustomers = []) {
     const result = [];
     const newProducts = [];
-    const usedMappings = new Set();
-    
-    // BIẾN ĐỂ THEO DÕI MÃ KHÁCH HÀNG
-    const customerCodeMap = new Map();
-    const customerCodeCounter = new Set();
-    
-    console.log('🔍 Bắt đầu chuyển đổi - Giữ nguyên số liệu từ file + Tạo mã KH');
+    const newCustomers = [];
+    const usedProductMappings = new Set();
+    const usedCustomerMappings = new Set();
     
     vnptData.forEach((vnptRow, index) => {
         const misaRow = {};
-        const fileType = vnptRow['FileType'] || 'VNPT';
         
-        // SỬ DỤNG SỐ LIỆU CHÍNH XÁC TỪ FILE
-        const phanTramThueGTGT = vnptRow['TaxRate'] || '8';
-        const donGia = vnptRow['DonGia'] || 0;
-        const thueGTGT = vnptRow['ThueGTGT'] || 0;
+        // Mapping sản phẩm
+        const productInfo = mapProductWithCustomMapping(
+            vnptRow['MatHang'], 
+            misaProducts, 
+            vnptRow
+        );
+        
+        // Mapping khách hàng
+        const customerInfo = mapCustomer(vnptRow['TenNguoiMua']);
+        
+        // Số liệu
         const soLuong = vnptRow['SoLuong'] || 0;
+        const donGia = vnptRow['DonGia'] || 0;
         const doanhSo = vnptRow['DoanhSo'] || 0;
-        const tenKhachHang = vnptRow['TenNguoiMua'] || 'Khách hàng';
+        const thueGTGT = vnptRow['ThueGTGT'] || 0;
+        const taxRate = vnptRow['TaxRate'] || '8';
         
-        console.log(`📊 Dòng ${index + 1}: SL=${soLuong}, ĐG=${donGia}, DS=${doanhSo}, Thuế=${thueGTGT}`);
-        
-        // === TẠO MÃ KHÁCH HÀNG ===
-        let maKhachHang = '';
-        if (customerCodeMap.has(tenKhachHang)) {
-            // Dùng mã đã tạo trước đó
-            maKhachHang = customerCodeMap.get(tenKhachHang);
-        } else {
-            // Tạo mã mới
-            maKhachHang = generateCustomerCode(tenKhachHang, customerCodeCounter);
-            customerCodeMap.set(tenKhachHang, maKhachHang);
-            console.log(`👤 Tạo mã KH: "${tenKhachHang}" -> ${maKhachHang}`);
-        }
-        
-        // === ÁNH XẠ CÁC CỘT MISA - GIỮ NGUYÊN SỐ LIỆU ===
+        // Ánh xạ các cột MISA
         misaRow['Ngày hạch toán (*)'] = formatDateForMISA(vnptRow['NgayHoaDon']);
         misaRow['Ngày chứng từ (*)'] = formatDateForMISA(vnptRow['NgayHoaDon']);
         misaRow['Số chứng từ (*)'] = vnptRow['SoHoaDon'];
         misaRow['Số phiếu xuất'] = vnptRow['SoHoaDon'];
         misaRow['Số hóa đơn'] = vnptRow['SoHoaDon'];
         misaRow['Ngày hóa đơn'] = formatDateForMISA(vnptRow['NgayHoaDon']);
-        misaRow['Mã khách hàng'] = maKhachHang; // THÊM MÃ KHÁCH HÀNG
-        misaRow['Tên khách hàng'] = tenKhachHang;
-        misaRow['Mã số thuế'] = vnptRow['MST'] || '';
-        misaRow['Diễn giải'] = `Bán cho ${tenKhachHang}`;
         
-        // Ánh xạ sản phẩm
-        const productInfo = mapProductWithCustomMapping(vnptRow['MatHang'], misaProducts, vnptRow);
+        // Mã và tên khách hàng từ mapping
+        misaRow['Mã khách hàng'] = customerInfo.code;
+        misaRow['Tên khách hàng'] = customerInfo.name;
+        
+        misaRow['Mã số thuế'] = vnptRow['MST'] || '';
+        misaRow['Diễn giải'] = `Bán cho ${customerInfo.name}`;
+        
+        // Mã và tên sản phẩm
         misaRow['Mã hàng (*)'] = productInfo.code;
         misaRow['Tên hàng'] = productInfo.name;
+        
+        // Các cột khác
         misaRow['TK Tiền/Chi phí/Nợ (*)'] = '131';
         misaRow['TK Doanh thu/Có (*)'] = '5111';
         misaRow['ĐVT'] = 'cái';
-        misaRow['Số lượng'] = soLuong; // Giữ nguyên từ file
-        
-        // GIỮ NGUYÊN GIÁ TRỊ TỪ FILE - KHÔNG TÍNH TOÁN
-        misaRow['Đơn giá sau thuế'] = donGia; // Giữ nguyên đơn giá từ file
-        misaRow['Đơn giá'] = donGia; // Giữ nguyên đơn giá từ file
-        misaRow['Thành tiền'] = doanhSo; // Giữ nguyên doanh số từ file
-        
-        // THUẾ - GIỮ NGUYÊN TỪ FILE
-        misaRow['% thuế GTGT'] = phanTramThueGTGT;
-        misaRow['Tiền thuế GTGT'] = thueGTGT; // Giữ nguyên từ file
+        misaRow['Số lượng'] = soLuong;
+        misaRow['Đơn giá sau thuế'] = donGia;
+        misaRow['Đơn giá'] = donGia;
+        misaRow['Thành tiền'] = doanhSo;
+        misaRow['% thuế GTGT'] = taxRate;
+        misaRow['Tiền thuế GTGT'] = thueGTGT;
         misaRow['TK thuế GTGT'] = '33311';
-        
-        // Các cột khác
         misaRow['Kho'] = 'KHO1';
         misaRow['TK giá vốn'] = '632';
         misaRow['TK Kho'] = '156';
         
-        // Các cột mặc định (LOẠI BỎ 'Mã khách hàng' VÌ ĐÃ ĐƯỢC THÊM Ở TRÊN)
+        // Các cột mặc định khác
         const defaultColumns = [
             'Hiển thị trên sổ', 'Hình thức bán hàng', 'Phương thức thanh toán',
             'Kiêm phiếu xuất kho', 'XK vào khu phi thuế quan và các TH được coi như XK',
@@ -782,32 +888,34 @@ function convertVNPTtoMISA(vnptData, misaProducts) {
             misaRow[col] = '';
         });
         
-        // Theo dõi sản phẩm
+        // Theo dõi kết quả mapping
         if (productInfo.isNew) {
             newProducts.push(productInfo);
         } else {
-            usedMappings.add(productInfo.code);
+            usedProductMappings.add(productInfo.code);
+        }
+        
+        if (customerInfo.isNew) {
+            newCustomers.push(customerInfo);
+        } else {
+            usedCustomerMappings.add(customerInfo.code);
         }
         
         result.push(misaRow);
     });
     
-    // HIỂN THỊ DANH SÁCH MÃ KHÁCH HÀNG ĐÃ TẠO
-    console.log('📋 Danh sách mã khách hàng đã tạo:');
-    customerCodeMap.forEach((code, name) => {
-        console.log(`- ${code}: ${name}`);
-    });
-    
     return {
         data: result,
         newProducts: newProducts,
-        usedMappings: Array.from(usedMappings),
-        customerCodes: Array.from(customerCodeMap.entries()),
+        newCustomers: newCustomers,
+        usedProductMappings: Array.from(usedProductMappings),
+        usedCustomerMappings: Array.from(usedCustomerMappings),
         summary: {
             totalRecords: result.length,
-            mappedProducts: usedMappings.size,
+            mappedProducts: usedProductMappings.size,
             newProducts: newProducts.length,
-            totalCustomers: customerCodeMap.size
+            mappedCustomers: usedCustomerMappings.size,
+            newCustomers: newCustomers.length
         }
     };
 }
@@ -1018,32 +1126,48 @@ function convertArrayToObjectForViettel(arrayData) {
         return [];
     }
 }
-        // HIỂN THỊ KẾT QUẢ
-        function displayResults(result) {
-            const summary = document.getElementById('resultSummary');
-            const newProducts = document.getElementById('newProductsList');
-            
-            summary.innerHTML = `
-                <div class="info">
-                    <h4>📊 Báo cáo chuyển đổi:</h4>
-                    <p>✅ Tổng số bản ghi: ${result.summary.totalRecords}</p>
-                    <p>🔗 Sản phẩm mapping được: ${result.summary.mappedProducts}</p>
-                    <p>🆕 Sản phẩm mới tạo: ${result.summary.newProducts}</p>
-                </div>
-            `;
-            
-            if (result.newProducts.length > 0) {
-                let newProductsHTML = '<div class="warning"><h4>📝 Danh sách sản phẩm mới (cần thêm vào MISA):</h4><ul>';
-                result.newProducts.forEach(product => {
-                    newProductsHTML += `<li><strong>${product.code}</strong>: ${product.name}</li>`;
-                });
-                newProductsHTML += '</ul></div>';
-                newProducts.innerHTML = newProductsHTML;
-            } else {
-                newProducts.innerHTML = '<div class="success">✅ Tất cả sản phẩm đều mapping được với MISA</div>';
-            }
-        }
-
+ // HIỂN THỊ KẾT QUẢ
+function displayResults(result) {
+    const summary = document.getElementById('resultSummary');
+    const newItems = document.getElementById('newProductsList');
+    
+    // Hiển thị summary
+    summary.innerHTML = `
+        <div class="info">
+            <h4>📊 Báo cáo chuyển đổi:</h4>
+            <p>✅ Tổng số bản ghi: ${result.summary.totalRecords}</p>
+            <p>📦 Sản phẩm mapping được: ${result.summary.mappedProducts}</p>
+            <p>📦 Sản phẩm mới tạo: ${result.summary.newProducts}</p>
+            <p>👥 Khách hàng mapping được: ${result.summary.mappedCustomers}</p>
+            <p>👥 Khách hàng mới tạo: ${result.summary.newCustomers}</p>
+        </div>
+    `;
+    
+    // Hiển thị danh sách mới
+    let newItemsHTML = '';
+    
+    if (result.newProducts.length > 0) {
+        newItemsHTML += '<div class="warning"><h4>📝 Sản phẩm mới (cần thêm vào MISA):</h4><ul>';
+        result.newProducts.forEach(product => {
+            newItemsHTML += `<li><strong>${product.code}</strong>: ${product.name}</li>`;
+        });
+        newItemsHTML += '</ul></div>';
+    }
+    
+    if (result.newCustomers.length > 0) {
+        newItemsHTML += '<div class="warning" style="margin-top: 20px;"><h4>👥 Khách hàng mới (cần thêm vào MISA):</h4><ul>';
+        result.newCustomers.forEach(customer => {
+            newItemsHTML += `<li><strong>${customer.code}</strong>: ${customer.name}</li>`;
+        });
+        newItemsHTML += '</ul></div>';
+    }
+    
+    if (newItemsHTML === '') {
+        newItemsHTML = '<div class="success">✅ Tất cả đều mapping được với MISA</div>';
+    }
+    
+    newItems.innerHTML = newItemsHTML;
+}
         // DOWNLOAD FILE MISA
         document.getElementById('downloadBtn').addEventListener('click', function() {
             if (!conversionResult) return;
