@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hệ Thống CasNa</title>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -18,26 +18,24 @@
             <div class="company-item">Chưa có dữ liệu</div>
         </div>
         <div class="sidebar-footer" style="padding: 20px; border-top: 1px solid #ddd;">
-    <button id="clear-all-data" class="btn-danger" style="width: 100%;">
-        🗑️ Xóa Hết Dữ Liệu
-    </button>
-</div>
-    
-    <!-- Thêm nút debug (tùy chọn) -->
-    <button onclick="debugDataStatus()" class="btn-secondary" style="width: 100%; margin-top: 10px; font-size: 12px;">
-        🔍 Debug Data
-    </button>
-</div>
+            <button id="clear-all-data" class="btn-danger" style="width: 100%;">
+                🗑️ Xóa Hết Dữ Liệu
+            </button>
+            <!-- Thêm nút debug -->
+            <button onclick="debugDataStatus()" class="btn-secondary" style="width: 100%; margin-top: 10px; font-size: 12px;">
+                🔍 Debug Data
+            </button>
+        </div>
+    </div>
     
     <div class="main-content">
         <div class="header">
             <div class="header-content">
-        
                 <div class="current-company" id="current-company">Chọn công ty để xem thông tin</div>
             </div>
         </div>
         
-        <!-- Menu ngang 8 tab (thêm tab Convert) -->
+        <!-- Menu ngang 8 tab -->
         <div class="nav-tabs">
             <div class="nav-tab" data-tab="xu-ly-hoa-don-loi">Xử Lý Hóa Đơn</div>
             <div class="nav-tab" data-tab="mua-hang">Mua Hàng</div>
@@ -46,13 +44,12 @@
             <div class="nav-tab" data-tab="tien-cong-no">Tiền & Công Nợ</div>
             <div class="nav-tab" data-tab="thue-bao-cao">Thuế & Báo Cáo</div>
             <div class="nav-tab" data-tab="so-sach">Sổ Sách</div>
-            <div class="nav-tab" data-tab="so-du-dau-ky">Số Dư Đầu Kỳ</div>
+            <div class="nav-tab active" data-tab="so-du-dau-ky">Số Dư Đầu Kỳ</div>
             <div class="nav-tab" data-tab="convert">Convert</div>
         </div>
         
-        <!-- Thêm nội dung tab -->
+        <!-- Tab Xử Lý Hóa Đơn Lỗi -->
         <div class="tab-content" id="xu-ly-hoa-don-loi">
-            <!-- Nội dung tab Xử Lý Hóa Đơn Lỗi (giữ nguyên) -->
             <div class="content-body">
                 <div class="card">
                     <div class="card-header">📊 Thống Kê Hóa Đơn Lỗi</div>
@@ -106,92 +103,62 @@
             </div>
         </div>
         
-        <!-- Tab Convert (mới thêm) -->
+        <!-- Tab Convert -->
         <div class="tab-content" id="convert">
             <div class="content-body">
-    <div class="card">
-        <div class="card-header">
-            <h3>Chuyển đổi VNPT/VIETTEL sang MISA</h3>
-            <p class="subtitle">Upload file VNPT và file mã hàng MISA để chuyển đổi tự động</p>
-        </div>
-        
-        <!-- NÚT TẢI FILE MẪU -->
-        <div class="section" style="background: #e8f5e8; border-left: 4px solid #28a745;">
-            <h4>📥 TẢI FILE MẪU</h4>
-            <p><strong>Download file MÃ Hang - Tên Hàng:</strong></p>
-            <button onclick="downloadMISASample()" class="btn" style="background: #28a745; color: white;">
-                ⬇️ Tải File
-            </button>
-            <p style="margin-top: 10px; font-size: 0.5em; color: #666;">
-                File mẫu có 4 cột: <strong>Mã hàng</strong> <strong>Tên hàng</strong> <strong>Mã KH</strong> <strong>Tên KH</strong>
-            </p>
-        </div>
-        
-        <!-- BƯỚC 1: UPLOAD FILE VNPT -->
-        <div class="section">
-            <h4>1. Upload file VNPT/VIETTEL</h4>
-            <input type="file" id="vnptFile" class="file-input" accept=".xlsx, .xls">
-            <div id="vnptPreview" class="preview">Chưa có file VNPT nào được chọn</div>
-        </div>
-        
-        <!-- BƯỚC 2: UPLOAD FILE MAPPING MISA -->
-        <div class="section">
-            <h4>2. Upload file mã hàng MISA</h4>
-            <p><strong>Định dạng:</strong> File Excel có 4 cột "Mã hàng" "Tên hàng" Mã KH" "Tên KH"</p>
-            <input type="file" id="misaMappingFile" class="file-input" accept=".xlsx, .xls">
-            <div id="mappingStatus" class="status info">Chưa có file MISA nào được chọn</div>
-            <div id="mappingPreview" class="preview">Danh sách mã hàng sẽ hiển thị ở đây</div>
-        </div>
-        
-        <!-- BƯỚC 3: XỬ LÝ -->
-        <div class="actions">
-            <button id="processBtn" class="btn" disabled>Xử lý chuyển đổi</button>
-            <button id="downloadBtn" class="btn btn-success" disabled>Tải file MISA</button>
-        </div>
-        
-        <!-- BƯỚC 4: KẾT QUẢ -->
-        <div class="result-section">
-            <h4>Kết quả chuyển đổi</h4>
-            <div id="processResult" class="status info">Chưa xử lý</div>
-            <div id="resultSummary"></div>
-            <div id="newProductsList"></div>
-        </div>
-    </div>
-</div>
-        </div>
-        <div id="xu-ly-hoa-don-loi" class="tab-content">
-    <div class="card">
-        <div class="card-header">
-            <h4>📋 Danh Sách Hóa Đơn Cần Xử Lý</h4>
-        </div>
-        <div class="card-body">
-            <!-- THÊM CONTAINER NÀY -->
-            <div id="error-invoice-list" class="table-responsive">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>STT</th>
-                            <th>Số HĐ</th>
-                            <th>Ngày</th>
-                            <th>Nhà CC</th>
-                            <th>MST</th>
-                            <th class="text-right">Tổng tiền</th>
-                            <th class="text-right">Chênh lệch</th>
-                            <th>Trạng thái</th>
-                            <th>Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Nội dung render bằng JS -->
-                    </tbody>
-                </table>
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Chuyển đổi VNPT/VIETTEL sang MISA</h3>
+                        <p class="subtitle">Upload file VNPT và file mã hàng MISA để chuyển đổi tự động</p>
+                    </div>
+                    
+                    <!-- NÚT TẢI FILE MẪU -->
+                    <div class="section" style="background: #e8f5e8; border-left: 4px solid #28a745;">
+                        <h4>📥 TẢI FILE MẪU</h4>
+                        <p><strong>Download file MÃ Hang - Tên Hàng:</strong></p>
+                        <button onclick="downloadMISASample()" class="btn" style="background: #28a745; color: white;">
+                            ⬇️ Tải File
+                        </button>
+                        <p style="margin-top: 10px; font-size: 0.5em; color: #666;">
+                            File mẫu có 4 cột: <strong>Mã hàng</strong> <strong>Tên hàng</strong> <strong>Mã KH</strong> <strong>Tên KH</strong>
+                        </p>
+                    </div>
+                    
+                    <!-- BƯỚC 1: UPLOAD FILE VNPT -->
+                    <div class="section">
+                        <h4>1. Upload file VNPT/VIETTEL</h4>
+                        <input type="file" id="vnptFile" class="file-input" accept=".xlsx, .xls">
+                        <div id="vnptPreview" class="preview">Chưa có file VNPT nào được chọn</div>
+                    </div>
+                    
+                    <!-- BƯỚC 2: UPLOAD FILE MAPPING MISA -->
+                    <div class="section">
+                        <h4>2. Upload file mã hàng MISA</h4>
+                        <p><strong>Định dạng:</strong> File Excel có 4 cột "Mã hàng" "Tên hàng" Mã KH" "Tên KH"</p>
+                        <input type="file" id="misaMappingFile" class="file-input" accept=".xlsx, .xls">
+                        <div id="mappingStatus" class="status info">Chưa có file MISA nào được chọn</div>
+                        <div id="mappingPreview" class="preview">Danh sách mã hàng sẽ hiển thị ở đây</div>
+                    </div>
+                    
+                    <!-- BƯỚC 3: XỬ LÝ -->
+                    <div class="actions">
+                        <button id="processBtn" class="btn" disabled>Xử lý chuyển đổi</button>
+                        <button id="downloadBtn" class="btn btn-success" disabled>Tải file MISA</button>
+                    </div>
+                    
+                    <!-- BƯỚC 4: KẾT QUẢ -->
+                    <div class="result-section">
+                        <h4>Kết quả chuyển đổi</h4>
+                        <div id="processResult" class="status info">Chưa xử lý</div>
+                        <div id="resultSummary"></div>
+                        <div id="newProductsList"></div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
-        <!-- Các tab khác giữ nguyên -->
+        
+        <!-- Tab Số Dư Đầu Kỳ -->
         <div class="tab-content active" id="so-du-dau-ky">
-            <!-- Nội dung tab Số Dư Đầu Kỳ (giữ nguyên) -->
             <div class="content-body">
                 <div class="card">
                     <div class="card-header">Nhập Số Dư Đầu Kỳ</div>
@@ -237,7 +204,6 @@
         
         <!-- Tab Mua Hàng -->
         <div class="tab-content" id="mua-hang">
-            
             <div class="content-body">
                 <div class="card">
                     <div class="card-header">1. Nhập Hóa Đơn Mua Hàng (XML/ZIP)</div>
@@ -250,7 +216,19 @@
                 <div class="card">
                     <div class="card-header">2. Danh Sách Hóa Đơn Mua Hàng</div>
                     <table class="table table-striped">
-                        
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>Số HĐ</th>
+                                <th>Ngày</th>
+                                <th>Nhà cung cấp</th>
+                                <th>MST NCC</th>
+                                <th>Tổng tiền</th>
+                                <th>Thuế GTGT</th>
+                                <th>Trạng thái</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
                         <tbody id="purchase-invoice-list">
                             <tr><td colspan="9" style="text-align: center;">Chưa có hóa đơn mua hàng</td></tr>
                         </tbody>
@@ -260,7 +238,16 @@
                 <div class="card">
                     <div class="card-header">3. Công Nợ Phải Trả NCC (331)</div>
                     <table class="table">
-                       
+                        <thead>
+                            <tr>
+                                <th>Nhà cung cấp</th>
+                                <th>MST</th>
+                                <th>Tổng nợ</th>
+                                <th>Đã thanh toán</th>
+                                <th>Còn nợ</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
                         <tbody id="payable-list">
                             <tr><td colspan="6" style="text-align: center;">Chưa có dữ liệu công nợ</td></tr>
                         </tbody>
@@ -278,304 +265,313 @@
             </div>
         </div>
 
-       <!-- Tab Kho Hàng -->
-<div class="tab-content" id="kho-hang">
-    <div class="content-body">
-        <!-- Cảnh báo tồn kho sẽ được thêm ở đây bằng JavaScript -->
+        <!-- Tab Kho Hàng - ĐÃ SỬA LỖI -->
+        <div class="tab-content" id="kho-hang">
+            <div class="content-header">
+                <h2>Quản Lý Kho Hàng</h2>
+            </div>
+            <div class="content-body">
+                <!-- Cảnh báo tồn kho sẽ được thêm ở đây bằng JavaScript -->
 
-        <!-- Danh Mục Hàng Hóa -->
-        <div class="card">
-            <div class="card-header">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h5 style="margin: 0;">Danh Mục Hàng Hóa</h5>
-                    <div id="catalog-summary" style="margin-left: auto; font-size: 14px; color: #666;">
-                        <!-- JavaScript sẽ cập nhật nội dung ở đây -->
+                <!-- Danh Mục Hàng Hóa -->
+                <div class="card">
+                    <div class="card-header">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h5 style="margin: 0;">Danh Mục Hàng Hóa</h5>
+                            <div id="catalog-summary" style="margin-left: auto; font-size: 14px; color: #666;">
+                                <!-- JavaScript sẽ cập nhật nội dung ở đây -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Bộ lọc ngày - ĐÃ SỬA LỖI THIẾU THẺ ĐÓNG -->
+                        <div class="form-group" style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="text" id="search-products" class="form-control" placeholder="Tìm kiếm">
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label for="stock-date-start" style="margin: 0; white-space: nowrap;">Từ ngày:</label>
+                                <input type="date" id="stock-date-start" class="form-control" style="width: auto;">
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label for="stock-date-end" style="margin: 0; white-space: nowrap;">Đến ngày:</label>
+                                <input type="date" id="stock-date-end" class="form-control" style="width: auto;">
+                            </div>
+                            <button id="apply-date-filter" class="btn-sm btn-primary">Áp dụng</button>
+                            <button id="clear-date-filter" class="btn-sm btn-outline-secondary">Hiện tại</button>
+                            <div style="font-size: 12px; color: #666; margin-left: auto;">
+                                <span id="date-filter-status"></span>
+                            </div>
+                        </div>
+                        
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>MSP</th>
+                                    <th>Tên hàng hóa</th>
+                                    <th>ĐVT</th>
+                                    <th style="text-align: right;">Số lượng tồn</th>
+                                    <th style="text-align: right;">Đơn giá</th>
+                                    <th style="text-align: right;">Thành tiền</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="product-catalog-list">
+                                <tr>
+                                    <td colspan="7" style="text-align: center;">Chưa có dữ liệu hàng hóa</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <div id="catalog-controls" style="text-align: center; margin-top: 10px; padding: 10px; border-top: 1px solid #eee;">
+                            <!-- JavaScript sẽ thêm nút vào đây -->
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="card-body">
-                <!-- Bộ lọc ngày -->
-                <div class="form-group" style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px; flex-wrap: wrap;">
-                    
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                                            <input type="text" id="search-products" class="form-control" placeholder="Tìm kiếm">
 
-                        <label for="stock-date-start" style="margin: 0; white-space: nowrap;">Từ ngày:</label>
-                        <input type="date" id="stock-date-start" class="form-control" style="width: auto;">
-                    
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <label for="stock-date-end" style="margin: 0; white-space: nowrap;">Đến ngày:</label>
-                        <input type="date" id="stock-date-end" class="form-control" style="width: auto;">
+                <!-- Dự Báo Nhu Cầu -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5>🔮 Dự Báo Nhu Cầu</h5>
                     </div>
-                    <button id="apply-date-filter" class="btn-sm btn-primary">Áp dụng</button>
-                    <button id="clear-date-filter" class="btn-sm btn-outline-secondary">Hiện tại</button>
-                    <div style="font-size: 12px; color: #666; margin-left: auto;">
-                        <span id="date-filter-status"></span>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label>Số tháng dự báo:</label>
+                            <select id="forecast-months" class="form-control">
+                                <option value="1">1 tháng</option>
+                                <option value="2">2 tháng</option>
+                                <option value="3">3 tháng</option>
+                            </select>
+                        </div>
+                        <button onclick="generateDemandForecast()" class="btn-primary">Tạo Dự Báo</button>
+                        <div id="forecast-result" style="margin-top: 15px;"></div>
+                    </div>
+                </div>
+
+                <!-- Hiệu Suất Kho -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5>📈 Hiệu Suất Kho</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="performance-stats" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                            <div class="stat-card" style="background: #e8f5e8; padding: 15px; border-radius: 4px; text-align: center;">
+                                <div style="font-size: 24px; font-weight: bold; color: #28a745;" id="turnover-rate">0%</div>
+                                <div style="font-size: 12px;">Tỷ lệ xoay vòng</div>
+                            </div>
+                            <div class="stat-card" style="background: #fff3cd; padding: 15px; border-radius: 4px; text-align: center;">
+                                <div style="font-size: 24px; font-weight: bold; color: #ffc107;" id="total-sku">0</div>
+                                <div style="font-size: 12px;">SKU tồn kho</div>
+                            </div>
+                            <div class="stat-card" style="background: #f8d7da; padding: 15px; border-radius: 4px; text-align: center;">
+                                <div style="font-size: 24px; font-weight: bold; color: #dc3545;" id="low-stock-sku">0</div>
+                                <div style="font-size: 12px;">SKU sắp hết</div>
+                            </div>
+                        </div>
+                        <button onclick="generatePerformanceReport()" class="btn-primary" style="margin-top: 15px;">Tạo Báo Cáo Hiệu Suất</button>
+                    </div>
+                </div>
+
+                <!-- Thẻ Kho Chi Tiết -->
+                <div class="card">
+                    <div class="card-header">Thẻ Kho Chi Tiết</div>
+                    <div id="stock-card-container">
+                        <p style="text-align: center; padding: 20px; color: #666;">
+                            Thẻ kho sẽ được hiển thị ở đây. Click vào MSP trong bảng trên để xem thẻ kho chi tiết.
+                        </p>
                     </div>
                 </div>
                 
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>MSP</th>
-                            <th>Tên hàng hóa</th>
-                            <th>ĐVT</th>
-                            <th style="text-align: right;">Số lượng tồn</th>
-                            <th style="text-align: right;">Đơn giá</th>
-                            <th style="text-align: right;">Thành tiền</th>
-                            <th>Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody id="product-catalog-list">
-                        <tr>
-                            <td colspan="7" style="text-align: center;">Chưa có dữ liệu hàng hóa</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <!-- Báo Cáo Tồn Kho -->
+                <div class="card">
+                    <div class="card-header">Báo Cáo Tồn Kho Theo Khoảng Thời Gian</div>
+                    <div class="card-body">
+                        <div class="form-group" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label for="report-date-start" style="margin: 0; white-space: nowrap;">Từ ngày:</label>
+                                <input type="date" id="report-date-start" class="form-control" style="width: auto;">
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label for="report-date-end" style="margin: 0; white-space: nowrap;">Đến ngày:</label>
+                                <input type="date" id="report-date-end" class="form-control" style="width: auto;">
+                            </div>
+                            <button id="generate-stock-report" class="btn-primary">Tạo Báo Cáo Tồn Kho</button>
+                        </div>
+                        <div id="stock-report-result" class="hidden" style="margin-top: 20px;">
+                            <!-- Kết quả báo cáo tồn kho sẽ hiển thị ở đây -->
+                        </div>
+                    </div>
+                </div>
                 
-                <div id="catalog-controls" style="text-align: center; margin-top: 10px; padding: 10px; border-top: 1px solid #eee;">
-                    <!-- JavaScript sẽ thêm nút vào đây -->
-                </div>
-            </div>
-        </div>
-
-
-        <!-- Dự Báo Nhu Cầu -->
-        <div class="card">
-            <div class="card-header">
-                <h5>🔮 Dự Báo Nhu Cầu</h5>
-            </div>
-            <div class="card-body">
-                <div class="form-group">
-                    <label>Số tháng dự báo:</label>
-                    <select id="forecast-months" class="form-control">
-                        <option value="1">1 tháng</option>
-                        <option value="2">2 tháng</option>
-                        <option value="3">3 tháng</option>
-                    </select>
-                </div>
-                <button onclick="generateDemandForecast()" class="btn-primary">Tạo Dự Báo</button>
-                <div id="forecast-result" style="margin-top: 15px;"></div>
-            </div>
-        </div>
-
-        <!-- Hiệu Suất Kho -->
-        <div class="card">
-            <div class="card-header">
-                <h5>📈 Hiệu Suất Kho</h5>
-            </div>
-            <div class="card-body">
-                <div class="performance-stats" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
-                    <div class="stat-card" style="background: #e8f5e8; padding: 15px; border-radius: 4px; text-align: center;">
-                        <div style="font-size: 24px; font-weight: bold; color: #28a745;" id="turnover-rate">0%</div>
-                        <div style="font-size: 12px;">Tỷ lệ xoay vòng</div>
-                    </div>
-                    <div class="stat-card" style="background: #fff3cd; padding: 15px; border-radius: 4px; text-align: center;">
-                        <div style="font-size: 24px; font-weight: bold; color: #ffc107;" id="total-sku">0</div>
-                        <div style="font-size: 12px;">SKU tồn kho</div>
-                    </div>
-                    <div class="stat-card" style="background: #f8d7da; padding: 15px; border-radius: 4px; text-align: center;">
-                        <div style="font-size: 24px; font-weight: bold; color: #dc3545;" id="low-stock-sku">0</div>
-                        <div style="font-size: 12px;">SKU sắp hết</div>
+                <!-- In Chứng Từ -->
+                <div class="card">
+                    <div class="card-header">In Chứng Từ</div>
+                    <div class="card-body">
+                        <div class="button-group" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn-primary" onclick="printStockCards()">In Thẻ Kho</button>
+                            <button class="btn-primary" onclick="printStockLedger()">In Sổ Nhập-Xuất-Tồn</button>
+                            <button class="btn-primary" onclick="printStockReport()">In Báo Cáo Tồn Kho</button>
+                        </div>
                     </div>
                 </div>
-                <button onclick="generatePerformanceReport()" class="btn-primary" style="margin-top: 15px;">Tạo Báo Cáo Hiệu Suất</button>
             </div>
         </div>
-
-        <!-- Thẻ Kho Chi Tiết -->
-        <div class="card">
-            <div class="card-header">Thẻ Kho Chi Tiết</div>
-            <div id="stock-card-container">
-                <p style="text-align: center; padding: 20px; color: #666;">
-                    Thẻ kho sẽ được hiển thị ở đây. Click vào MSP trong bảng trên để xem thẻ kho chi tiết.
-                </p>
-            </div>
-        </div>
-        
-        <!-- Báo Cáo Tồn Kho -->
-        <div class="card">
-            <div class="card-header">Báo Cáo Tồn Kho Theo Khoảng Thời Gian</div>
-            <div class="card-body">
-                <div class="form-group" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <label for="report-date-start" style="margin: 0; white-space: nowrap;">Từ ngày:</label>
-                        <input type="date" id="report-date-start" class="form-control" style="width: auto;">
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <label for="report-date-end" style="margin: 0; white-space: nowrap;">Đến ngày:</label>
-                        <input type="date" id="report-date-end" class="form-control" style="width: auto;">
-                    </div>
-                    <button id="generate-stock-report" class="btn-primary">Tạo Báo Cáo Tồn Kho</button>
-                </div>
-                <div id="stock-report-result" class="hidden" style="margin-top: 20px;">
-                    <!-- Kết quả báo cáo tồn kho sẽ hiển thị ở đây -->
-                </div>
-            </div>
-        </div>
-        
-        <!-- In Chứng Từ -->
-        <div class="card">
-            <div class="card-header">In Chứng Từ</div>
-            <div class="card-body">
-                <div class="button-group" style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn-primary" onclick="printStockCards()">In Thẻ Kho</button>
-                    <button class="btn-primary" onclick="printStockLedger()">In Sổ Nhập-Xuất-Tồn</button>
-                    <button class="btn-primary" onclick="printStockReport()">In Báo Cáo Tồn Kho</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
         <!-- Tab Bán Hàng -->
-<div class="tab-content" id="ban-hang">
-    <div class="content-body">
-        <div class="card">
-            <div class="card-header">
-                <h5>🛒 Tạo Đơn Bán Hàng</h5>
+        <div class="tab-content" id="ban-hang">
+            <div class="content-header">
+                <h2>Bán Hàng / Xuất Hàng</h2>
             </div>
-            <div class="card-body">
-                <!-- Thông tin khách hàng -->
-                <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-                    <div class="form-group">
-                        <label for="sale-customer">Tên khách hàng *</label>
-                        <input type="text" id="sale-customer" class="form-control" placeholder="Nhập tên khách hàng">
-                    </div>
-                    <div class="form-group">
-                        <label for="sale-phone">Số điện thoại</label>
-                        <input type="text" id="sale-phone" class="form-control" placeholder="Nhập số điện thoại">
-                    </div>
-                    <div class="form-group">
-                        <label for="sale-taxcode">Mã số thuế</label>
-                        <input type="text" id="sale-taxcode" class="form-control" placeholder="Nhập MST">
-                    </div>
-                    <div class="form-group">
-                        <label for="sale-address">Địa chỉ</label>
-                        <input type="text" id="sale-address" class="form-control" placeholder="Nhập địa chỉ">
-                    </div>
-                    <div class="form-group">
-                        <label for="sale-date">Ngày bán *</label>
-                        <input type="date" id="sale-date" class="form-control">
-                    </div>
-                    <div class="form-group">
-                        <label for="sale-payment-method">Phương thức thanh toán *</label>
-                        <select id="sale-payment-method" class="form-control">
-                            <option value="cash">Tiền mặt</option>
-                            <option value="bank">Chuyển khoản</option>
-                            <option value="credit">Công nợ</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Nút tạo đơn và thông tin tổng -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 4px;">
-                    <div>
-                        <button id="create-sale-order" class="btn-success" style="font-size: 16px; padding: 10px 20px;">
-                            🛍️ Tạo Đơn Bán Hàng
-                        </button>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="font-size: 14px; color: #666;">Tổng tiền:</div>
-                        <div id="total-sale-display" style="font-size: 24px; font-weight: bold; color: #28a745;">0</div>
-                    </div>
-                </div>
-
-                <!-- Bộ lọc và điều chỉnh giá -->
-                <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                    <div class="form-group">
-                        <label for="sale-product-search">🔍 Tìm kiếm sản phẩm</label>
-                        <input type="text" id="sale-product-search" class="form-control" placeholder="Tìm theo MSP, tên...">
-                    </div>
-                    <div class="form-group">
-                        <label for="sale-margin">📈 % Lợi nhuận mong muốn</label>
-                        <div style="display: flex; gap: 10px;">
-                            <input type="number" id="sale-margin" class="form-control" value="20" min="0" max="100" step="1" style="width: 100px;">
-                            <button onclick="applyMarginToAll()" class="btn-sm btn-primary">Áp dụng</button>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label style="display: block; margin-bottom: 5px;">Thao tác nhanh</label>
-                        <div style="display: flex; gap: 5px;">
-                            <button onclick="selectAllProducts()" class="btn-sm btn-outline-primary">Chọn tất cả</button>
-                            <button onclick="deselectAllProducts()" class="btn-sm btn-outline-secondary">Bỏ chọn</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Danh sách sản phẩm -->
+            <div class="content-body">
                 <div class="card">
-                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                        <h6 style="margin: 0;">📦 Chọn Sản Phẩm Bán</h6>
-                        <div id="sale-summary" style="font-size: 14px; color: #666;">
-                            <span id="selected-count">0</span> sản phẩm được chọn | 
-                            Tổng: <span id="header-total-amount">0</span>
+                    <div class="card-header">
+                        <h5>🛒 Tạo Đơn Bán Hàng</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Thông tin khách hàng -->
+                        <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                            <div class="form-group">
+                                <label for="sale-customer">Tên khách hàng *</label>
+                                <input type="text" id="sale-customer" class="form-control" placeholder="Nhập tên khách hàng">
+                            </div>
+                            <div class="form-group">
+                                <label for="sale-phone">Số điện thoại</label>
+                                <input type="text" id="sale-phone" class="form-control" placeholder="Nhập số điện thoại">
+                            </div>
+                            <div class="form-group">
+                                <label for="sale-taxcode">Mã số thuế</label>
+                                <input type="text" id="sale-taxcode" class="form-control" placeholder="Nhập MST">
+                            </div>
+                            <div class="form-group">
+                                <label for="sale-address">Địa chỉ</label>
+                                <input type="text" id="sale-address" class="form-control" placeholder="Nhập địa chỉ">
+                            </div>
+                            <div class="form-group">
+                                <label for="sale-date">Ngày bán *</label>
+                                <input type="date" id="sale-date" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label for="sale-payment-method">Phương thức thanh toán *</label>
+                                <select id="sale-payment-method" class="form-control">
+                                    <option value="cash">Tiền mặt</option>
+                                    <option value="bank">Chuyển khoản</option>
+                                    <option value="credit">Công nợ</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Nút tạo đơn và thông tin tổng -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 15px; background: #f8f9fa; border-radius: 4px;">
+                            <div>
+                                <button id="create-sale-order" class="btn-success" style="font-size: 16px; padding: 10px 20px;">
+                                    🛍️ Tạo Đơn Bán Hàng
+                                </button>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 14px; color: #666;">Tổng tiền:</div>
+                                <div id="total-sale-display" style="font-size: 24px; font-weight: bold; color: #28a745;">0</div>
+                            </div>
+                        </div>
+
+                        <!-- Bộ lọc và điều chỉnh giá -->
+                        <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                            <div class="form-group">
+                                <label for="sale-product-search">🔍 Tìm kiếm sản phẩm</label>
+                                <input type="text" id="sale-product-search" class="form-control" placeholder="Tìm theo MSP, tên...">
+                            </div>
+                            <div class="form-group">
+                                <label for="sale-margin">📈 % Lợi nhuận mong muốn</label>
+                                <div style="display: flex; gap: 10px;">
+                                    <input type="number" id="sale-margin" class="form-control" value="20" min="0" max="100" step="1" style="width: 100px;">
+                                    <button onclick="applyMarginToAll()" class="btn-sm btn-primary">Áp dụng</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label style="display: block; margin-bottom: 5px;">Thao tác nhanh</label>
+                                <div style="display: flex; gap: 5px;">
+                                    <button onclick="selectAllProducts()" class="btn-sm btn-outline-primary">Chọn tất cả</button>
+                                    <button onclick="deselectAllProducts()" class="btn-sm btn-outline-secondary">Bỏ chọn</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Danh sách sản phẩm -->
+                        <div class="card">
+                            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                                <h6 style="margin: 0;">📦 Chọn Sản Phẩm Bán</h6>
+                                <div id="sale-summary" style="font-size: 14px; color: #666;">
+                                    <span id="selected-count">0</span> sản phẩm được chọn | 
+                                    Tổng: <span id="header-total-amount">0</span>
+                                </div>
+                            </div>
+                            <div class="card-body" style="padding: 0;">
+                                <div id="sale-products-container">
+                                    <!-- Danh sách sản phẩm sẽ được load bằng JavaScript -->
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="card-body" style="padding: 0;">
-                        <div id="sale-products-container">
-                            <!-- Danh sách sản phẩm sẽ được load bằng JavaScript -->
-                        </div>
+                </div>
+                
+                <!-- Danh Sách Đơn Bán Hàng -->
+                <div class="card">
+                    <div class="card-header">Danh Sách Đơn Bán Hàng</div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Mã đơn</th>
+                                <th>Ngày</th>
+                                <th>Khách hàng</th>
+                                <th>Điện thoại</th>
+                                <th>Tổng tiền</th>
+                                <th>Trạng thái</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sale-orders-list">
+                            <tr><td colspan="7" style="text-align: center;">Chưa có đơn bán hàng</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Công Nợ Phải Thu KH -->
+                <div class="card">
+                    <div class="card-header">Công Nợ Phải Thu KH (131)</div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Khách hàng</th>
+                                <th>Điện thoại</th>
+                                <th>MST</th>
+                                <th>Tổng nợ</th>
+                                <th>Đã thu</th>
+                                <th>Còn nợ</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="receivable-list">
+                            <tr><td colspan="7" style="text-align: center;">Chưa có dữ liệu công nợ</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- In Chứng Từ -->
+                <div class="card">
+                    <div class="card-header">In Chứng Từ</div>
+                    <div class="button-group">
+                        <button class="btn-primary" onclick="printSaleOrders()">In Đơn Hàng</button>
+                        <button class="btn-primary" onclick="printSaleInvoices()">In Hóa Đơn Đầu Ra</button>
+                        <button class="btn-primary" onclick="printSaleReport()">In Báo Cáo Doanh Thu</button>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <!-- Các phần còn lại giữ nguyên -->
-        <div class="card">
-            <div class="card-header">Danh Sách Đơn Bán Hàng</div>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Mã đơn</th>
-                        <th>Ngày</th>
-                        <th>Khách hàng</th>
-                        <th>Điện thoại</th>
-                        <th>Tổng tiền</th>
-                        <th>Trạng thái</th>
-                        <th>Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody id="sale-orders-list">
-                    <tr><td colspan="7" style="text-align: center;">Chưa có đơn bán hàng</td></tr>
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">Công Nợ Phải Thu KH (131)</div>
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Khách hàng</th>
-                        <th>Điện thoại</th>
-                        <th>MST</th>
-                        <th>Tổng nợ</th>
-                        <th>Đã thu</th>
-                        <th>Còn nợ</th>
-                        <th>Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody id="receivable-list">
-                    <tr><td colspan="7" style="text-align: center;">Chưa có dữ liệu công nợ</td></tr>
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">In Chứng Từ</div>
-            <div class="button-group">
-                <button class="btn-primary" onclick="printSaleOrders()">In Đơn Hàng</button>
-                <button class="btn-primary" onclick="printSaleInvoices()">In Hóa Đơn Đầu Ra</button>
-                <button class="btn-primary" onclick="printSaleReport()">In Báo Cáo Doanh Thu</button>
-            </div>
-        </div>
-    </div>
-</div>
 
         <!-- Tab Tiền & Công Nợ -->
         <div class="tab-content" id="tien-cong-no">
-            
+            <div class="content-header">
+                <h2>Quản Lý Tiền & Công Nợ</h2>
+            </div>
             <div class="content-body">
                 <div class="card">
                     <div class="card-header">Phiếu Thu - Phiếu Chi (111)</div>
@@ -665,7 +661,9 @@
 
         <!-- Tab Thuế & Báo Cáo -->
         <div class="tab-content" id="thue-bao-cao">
-            
+            <div class="content-header">
+                <h2>Thuế & Báo Cáo</h2>
+            </div>
             <div class="content-body">
                 <div class="card">
                     <div class="card-header">Sổ Thuế GTGT</div>
@@ -792,7 +790,9 @@
 
         <!-- Tab Sổ Sách -->
         <div class="tab-content" id="so-sach">
-            
+            <div class="content-header">
+                <h2>Sổ Sách Tổng Hợp</h2>
+            </div>
             <div class="content-body">
                 <div class="card">
                     <div class="card-header">Nhật Ký Chung</div>
@@ -863,7 +863,7 @@
 
     </div>
 
-     <!-- Modal container -->
+    <!-- Modal container -->
     <div id="custom-modal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
@@ -876,23 +876,23 @@
         </div>
     </div>
 
-   <!-- Load core fixes đầu tiên -->
-<script src="core-fixes.js"></script>
-<script src="zip-trichxuat.js"></script>
-<script src="hoadon.js"></script>
-<script src="muahang.js"></script>
-<!-- Các file khác giữ nguyên -->
-<script src="xulyhoadonloi.js"></script>
-<script src="sodudauky.js"></script>
-<script src="khohang.js"></script>
-<script src="banhang.js"></script>
-<script src="auto-export-scheduler.js"></script>
-<script src="khachhang-ncc.js"></script>
-<script src="smart-sale-floating.js"></script>
-<script src="tiencongno.js"></script>
-<script src="thuebaocao.js"></script>
-<script src="sosach.js"></script>
-<script src="app.js"></script>
-<script src="conver.js"></script>
+    <!-- Load core fixes đầu tiên -->
+    <script src="core-fixes.js"></script>
+    <script src="zip-trichxuat.js"></script>
+    <script src="hoadon.js"></script>
+    <script src="muahang.js"></script>
+    <!-- Các file khác giữ nguyên -->
+    <script src="xulyhoadonloi.js"></script>
+    <script src="sodudauky.js"></script>
+    <script src="khohang.js"></script>
+    <script src="banhang.js"></script>
+    <script src="auto-export-scheduler.js"></script>
+    <script src="khachhang-ncc.js"></script>
+    <script src="smart-sale-floating.js"></script>
+    <script src="tiencongno.js"></script>
+    <script src="thuebaocao.js"></script>
+    <script src="sosach.js"></script>
+    <script src="app.js"></script>
+    <script src="conver.js"></script>
 </body>
 </html>
