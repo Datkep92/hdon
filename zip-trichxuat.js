@@ -862,23 +862,13 @@ function isProductCodeExist(taxCode, code) {
 
 
 // =======================
-// Tạo MSP với hậu tố phân loại
+// Tạo MSP - LUÔN dùng generateProductCodeByName
 // =======================
 function generateMSP(code, name, unit, idx, category, taxCode = '') {
-  let baseCode = '';
+  // 1. LUÔN tạo mã từ tên sản phẩm (bỏ qua code từ XML)
+  let baseCode = generateProductCodeByName(taxCode || 'DEFAULT', category, name);
   
-  // Nếu có code từ XML và không trống
-  if (code && code.trim() !== '') {
-    baseCode = code;
-  } else if (taxCode && taxCode !== 'UNKNOWN') {
-    // Tạo mã theo tên sản phẩm
-    baseCode = generateProductCodeByName(taxCode, category, name);
-  } else {
-    // Fallback: dùng tên + đơn vị
-    baseCode = `${removeVietnameseAccents(name)}_${unit}`.replace(/\s+/g, '_').toUpperCase().substring(0, 20);
-  }
-  
-  // THÊM HẬU TỐ PHÂN LOẠI
+  // 2. Thêm hậu tố phân loại
   if (category === 'chiet_khau') {
     baseCode += '_CK';
   } else if (category === 'khuyen_mai') {
