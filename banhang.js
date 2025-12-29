@@ -133,10 +133,30 @@ function initMarginCalculator() {
         });
     }
 }
-
 /**
- * Áp dụng lợi nhuận cố định cho mỗi sản phẩm
+ * Áp dụng tiền cộng thêm cho tất cả sản phẩm
  */
+function applyExtraAmountToAll() {
+    const extraAmount = parseFloat(document.getElementById('sale-extra-amount-global').value) || 0;
+    
+    if (extraAmount < 0) {
+        alert('Tiền cộng thêm không được âm');
+        return;
+    }
+    
+    document.querySelectorAll('.sale-product-check').forEach(checkbox => {
+        const msp = checkbox.getAttribute('data-msp');
+        const extraAmountInput = document.querySelector(`.sale-extra-amount[data-msp="${msp}"]`);
+        
+        if (extraAmountInput) {
+            extraAmountInput.value = extraAmount;
+            updateFinalPrice(msp);
+        }
+    });
+    
+    calculateTotalSaleAmount();
+    updateSaleSummary();
+}
 function applyFixedProfitPerProduct() {
     const fixedProfit = parseFloat(document.getElementById('fixed-profit-per-product').value) || 0;
     
@@ -148,13 +168,21 @@ function applyFixedProfitPerProduct() {
     document.querySelectorAll('.sale-product-check').forEach(checkbox => {
         const msp = checkbox.getAttribute('data-msp');
         const costPrice = parseFloat(checkbox.getAttribute('data-cost')) || 0;
+        const taxRateInput = document.querySelector(`.sale-tax-rate[data-msp="${msp}"]`);
+        const extraAmountInput = document.querySelector(`.sale-extra-amount[data-msp="${msp}"]`);
         
-        // Tính giá bán: Giá vốn + Lợi nhuận cố định
-        const sellingPrice = costPrice + fixedProfit;
+        const taxRate = parseFloat(taxRateInput.value) || 10;
+        const extraAmount = parseFloat(extraAmountInput.value) || 0;
         
-        const priceInput = document.querySelector(`.sale-price[data-msp="${msp}"]`);
-        if (priceInput) {
-            priceInput.value = accountingRound(sellingPrice);
+        // Tính giá chưa thuế: Giá vốn + Lợi nhuận cố định
+        const basePrice = costPrice + fixedProfit;
+        
+        const basePriceInput = document.querySelector(`.sale-base-price[data-msp="${msp}"]`);
+        if (basePriceInput) {
+            basePriceInput.value = accountingRound(basePrice);
+            
+            // Cập nhật giá bán tự động
+            updateFinalPrice(msp);
             
             // Cập nhật số lượng nếu đã chọn
             if (checkbox.checked) {
@@ -163,8 +191,6 @@ function applyFixedProfitPerProduct() {
                     qtyInput.value = '1';
                 }
             }
-            
-            calculateSaleAmount(msp);
         }
     });
     
@@ -172,9 +198,6 @@ function applyFixedProfitPerProduct() {
     updateSaleSummary();
 }
 
-/**
- * Áp dụng % lợi nhuận (giữ nguyên logic cũ)
- */
 function applyMarginToAll() {
     const margin = parseFloat(document.getElementById('sale-margin').value) || 20;
     
@@ -186,13 +209,21 @@ function applyMarginToAll() {
     document.querySelectorAll('.sale-product-check').forEach(checkbox => {
         const msp = checkbox.getAttribute('data-msp');
         const costPrice = parseFloat(checkbox.getAttribute('data-cost')) || 0;
+        const taxRateInput = document.querySelector(`.sale-tax-rate[data-msp="${msp}"]`);
+        const extraAmountInput = document.querySelector(`.sale-extra-amount[data-msp="${msp}"]`);
         
-        // Tính giá bán: Giá vốn × (1 + margin/100)
-        const sellingPrice = costPrice * (1 + margin / 100);
+        const taxRate = parseFloat(taxRateInput.value) || 10;
+        const extraAmount = parseFloat(extraAmountInput.value) || 0;
         
-        const priceInput = document.querySelector(`.sale-price[data-msp="${msp}"]`);
-        if (priceInput) {
-            priceInput.value = accountingRound(sellingPrice);
+        // Tính giá chưa thuế: Giá vốn × (1 + margin/100)
+        const basePrice = costPrice * (1 + margin / 100);
+        
+        const basePriceInput = document.querySelector(`.sale-base-price[data-msp="${msp}"]`);
+        if (basePriceInput) {
+            basePriceInput.value = accountingRound(basePrice);
+            
+            // Cập nhật giá bán tự động
+            updateFinalPrice(msp);
             
             // Cập nhật số lượng nếu đã chọn
             if (checkbox.checked) {
@@ -201,48 +232,47 @@ function applyMarginToAll() {
                     qtyInput.value = '1';
                 }
             }
-            
-            calculateSaleAmount(msp);
         }
     });
     
     calculateTotalSaleAmount();
     updateSaleSummary();
 }
-/**
- * Hiển thị ví dụ tính toán cho cả 2 phương pháp
- */
 function showProfitExamples() {
     const costPrice = 336364; // Ví dụ: Giá vốn Bia Tiger
+    const taxRate = 10; // Thuế suất 10%
     
     // Tính theo %
     const margin = parseFloat(document.getElementById('sale-margin').value) || 20;
-    const priceByPercent = costPrice * (1 + margin / 100);
+    const priceBeforeTaxByPercent = costPrice * (1 + margin / 100);
+    const priceIncludingTaxByPercent = priceBeforeTaxByPercent * (1 + taxRate/100);
     
     // Tính theo số tiền cố định
     const fixedProfit = parseFloat(document.getElementById('fixed-profit-per-product').value) || 1000;
-    const priceByFixed = costPrice + fixedProfit;
+    const priceBeforeTaxByFixed = costPrice + fixedProfit;
+    const priceIncludingTaxByFixed = priceBeforeTaxByFixed * (1 + taxRate/100);
     
     const examples = `
         <div style="padding: 15px; background: #f8f9fa; border-radius: 4px;">
-            <h5>Ví dụ tính toán với giá vốn: ${formatCurrency(costPrice)}</h5>
+            <h5>Ví dụ tính toán với giá vốn: ${formatCurrency(costPrice)} (Thuế suất: ${taxRate}%)</h5>
             
             <div style="margin-top: 10px;">
                 <strong>1. Theo % lợi nhuận (${margin}%):</strong><br>
-                - Lợi nhuận/SP: ${formatCurrency(costPrice * margin / 100)}<br>
-                - <strong>Giá bán: ${formatCurrency(priceByPercent)}</strong>
+                - Giá chưa thuế: ${formatCurrency(priceBeforeTaxByPercent)}<br>
+                - Thuế GTGT (${taxRate}%): ${formatCurrency(priceBeforeTaxByPercent * taxRate/100)}<br>
+                - <strong>Giá bán (có thuế): ${formatCurrency(priceIncludingTaxByPercent)}</strong>
             </div>
             
             <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
                 <strong>2. Theo lợi nhuận cố định (${formatCurrency(fixedProfit)}/SP):</strong><br>
-                - Giá vốn: ${formatCurrency(costPrice)}<br>
-                - + Lợi nhuận cố định: ${formatCurrency(fixedProfit)}<br>
-                - <strong>Giá bán: ${formatCurrency(priceByFixed)}</strong>
+                - Giá chưa thuế: ${formatCurrency(priceBeforeTaxByFixed)}<br>
+                - Thuế GTGT (${taxRate}%): ${formatCurrency(priceBeforeTaxByFixed * taxRate/100)}<br>
+                - <strong>Giá bán (có thuế): ${formatCurrency(priceIncludingTaxByFixed)}</strong>
             </div>
             
             <div style="margin-top: 15px; padding: 10px; background: #e8f5e8; border-radius: 4px;">
-                <strong>Chênh lệch:</strong> ${formatCurrency(Math.abs(priceByPercent - priceByFixed))}
-                ${priceByPercent > priceByFixed ? '(Phương pháp % cao hơn)' : '(Phương pháp cố định cao hơn)'}
+                <strong>Chênh lệch giá bán (có thuế):</strong> ${formatCurrency(Math.abs(priceIncludingTaxByPercent - priceIncludingTaxByFixed))}
+                ${priceIncludingTaxByPercent > priceIncludingTaxByFixed ? '(Phương pháp % cao hơn)' : '(Phương pháp cố định cao hơn)'}
             </div>
         </div>
     `;
@@ -292,7 +322,10 @@ function loadSaleProducts() {
                         <th>ĐVT</th>
                         <th style="text-align: right;">Tồn kho</th>
                         <th style="text-align: right;">Giá vốn</th>
-                        <th style="text-align: right;">Giá bán</th>
+                        <th style="text-align: right;">Giá chưa thuế</th>
+                        <th style="text-align: right;">Thuế suất</th>
+                        <th style="text-align: right;">Tiền cộng</th>
+                        <th style="text-align: right;">Giá bán (có thuế)</th>
                         <th style="text-align: right;">SL bán</th>
                         <th style="text-align: right;">Thành tiền</th>
                     </tr>
@@ -301,13 +334,20 @@ function loadSaleProducts() {
     `;
 
     availableProducts.forEach(product => {
-        const sellingPrice = accountingRound(product.avgPrice * 1.2);
+        // Đơn giá chưa thuế = Giá vốn * 1.2 (lãi 20%)
+        const basePrice = product.avgPrice * 1.2;
+        // Thuế suất mặc định 10%
+        const taxRate = 10;
+        // Tiền cộng thêm mặc định = 0
+        const extraAmount = 0;
+        // Giá bán bao gồm thuế = basePrice + (basePrice × taxRate/100) + extraAmount
+        const sellingPriceIncludingTax = accountingRound(basePrice + (basePrice * taxRate/100) + extraAmount);
         
         html += `
             <tr class="sale-product-row" data-msp="${product.msp}">
                 <td>
                     <input type="checkbox" class="sale-product-check" data-msp="${product.msp}" 
-                           data-price="${sellingPrice}" data-cost="${product.avgPrice}" data-max="${product.quantity}">
+                           data-cost="${product.avgPrice}" data-base-price="${basePrice}" data-max="${product.quantity}">
                 </td>
                 <td><strong>${product.msp}</strong></td>
                 <td>${product.name}</td>
@@ -315,8 +355,31 @@ function loadSaleProducts() {
                 <td style="text-align: right;">${product.quantity.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}</td>
                 <td style="text-align: right;">${safeFormatCurrency(product.avgPrice)}</td>
                 <td style="text-align: right;">
+                    <input type="number" class="sale-base-price form-control-sm" data-msp="${product.msp}" 
+                           value="${accountingRound(basePrice)}" min="${product.avgPrice}" 
+                           style="width: 100px; text-align: right;" 
+                           onchange="updateFinalPriceFromBase('${product.msp}')">
+                </td>
+                <td style="text-align: right;">
+                    <input type="number" class="sale-tax-rate form-control-sm" data-msp="${product.msp}" 
+                           value="${taxRate}" min="0" max="100" step="0.1" 
+                           style="width: 70px; text-align: right;" 
+                           onchange="updateFinalPrice('${product.msp}')">%
+                </td>
+                <td style="text-align: right;">
+                    <input type="number" class="sale-extra-amount form-control-sm" data-msp="${product.msp}" 
+                           value="${extraAmount}" min="0" step="100" 
+                           style="width: 90px; text-align: right;" 
+                           onchange="updateFinalPrice('${product.msp}')">
+                </td>
+                <td style="text-align: right;">
                     <input type="number" class="sale-price form-control-sm" data-msp="${product.msp}" 
-                           value="${sellingPrice}" min="${product.avgPrice}" style="width: 100px; text-align: right;">
+                           value="${sellingPriceIncludingTax}" min="${product.avgPrice}" 
+                           style="width: 120px; text-align: right;" 
+                           onchange="calculateSaleAmount('${product.msp}')">
+                    <div style="font-size: 10px; color: #666;">
+                        Thuế: <span class="tax-amount" data-msp="${product.msp}">${safeFormatCurrency(basePrice * taxRate/100)}</span>
+                    </div>
                 </td>
                 <td style="text-align: right;">
                     <input type="number" class="sale-quantity form-control-sm" data-msp="${product.msp}" 
@@ -348,7 +411,65 @@ function loadSaleProducts() {
     attachSaleEventListeners();
     updateSaleSummary();
 }
+/**
+ * Cập nhật giá bán cuối cùng khi thay đổi thuế suất hoặc tiền cộng thêm
+ */
+function updateFinalPrice(msp) {
+    const basePriceInput = document.querySelector(`.sale-base-price[data-msp="${msp}"]`);
+    const taxRateInput = document.querySelector(`.sale-tax-rate[data-msp="${msp}"]`);
+    const extraAmountInput = document.querySelector(`.sale-extra-amount[data-msp="${msp}"]`);
+    const priceInput = document.querySelector(`.sale-price[data-msp="${msp}"]`);
+    const taxAmountSpan = document.querySelector(`.tax-amount[data-msp="${msp}"]`);
+    
+    const basePrice = parseFloat(basePriceInput.value) || 0;
+    const taxRate = parseFloat(taxRateInput.value) || 0;
+    const extraAmount = parseFloat(extraAmountInput.value) || 0;
+    
+    // Tính thuế
+    const taxAmount = basePrice * taxRate / 100;
+    
+    // Tính giá bán: basePrice + taxAmount + extraAmount
+    const finalPrice = accountingRound(basePrice + taxAmount + extraAmount);
+    
+    // Cập nhật giá bán
+    priceInput.value = finalPrice;
+    
+    // Cập nhật hiển thị thuế
+    taxAmountSpan.textContent = safeFormatCurrency(accountingRound(taxAmount));
+    
+    // Tính lại thành tiền
+    calculateSaleAmount(msp);
+}
 
+/**
+ * Cập nhật giá bán khi thay đổi giá chưa thuế
+ */
+function updateFinalPriceFromBase(msp) {
+    const basePriceInput = document.querySelector(`.sale-base-price[data-msp="${msp}"]`);
+    const taxRateInput = document.querySelector(`.sale-tax-rate[data-msp="${msp}"]`);
+    const extraAmountInput = document.querySelector(`.sale-extra-amount[data-msp="${msp}"]`);
+    const priceInput = document.querySelector(`.sale-price[data-msp="${msp}"]`);
+    const taxAmountSpan = document.querySelector(`.tax-amount[data-msp="${msp}"]`);
+    
+    const basePrice = parseFloat(basePriceInput.value) || 0;
+    const taxRate = parseFloat(taxRateInput.value) || 0;
+    const extraAmount = parseFloat(extraAmountInput.value) || 0;
+    
+    // Tính thuế
+    const taxAmount = basePrice * taxRate / 100;
+    
+    // Tính giá bán: basePrice + taxAmount + extraAmount
+    const finalPrice = accountingRound(basePrice + taxAmount + extraAmount);
+    
+    // Cập nhật giá bán
+    priceInput.value = finalPrice;
+    
+    // Cập nhật hiển thị thuế
+    taxAmountSpan.textContent = safeFormatCurrency(accountingRound(taxAmount));
+    
+    // Tính lại thành tiền
+    calculateSaleAmount(msp);
+}
 // Cập nhật tổng quan bán hàng
 function updateSaleSummary() {
     const selectedCount = document.querySelectorAll('.sale-product-check:checked').length;
@@ -412,7 +533,35 @@ function validateQuantity(msp) {
         calculateTotalSaleAmount();
     }
 }
-
+/**
+ * Cập nhật giá bán khi thay đổi thuế suất
+ */
+function updateSellingPrice(msp) {
+    const taxRateInput = document.querySelector(`.sale-tax-rate[data-msp="${msp}"]`);
+    const priceInput = document.querySelector(`.sale-price[data-msp="${msp}"]`);
+    const priceBeforeTaxSpan = document.querySelector(`.price-before-tax[data-msp="${msp}"]`);
+    
+    const taxRate = parseFloat(taxRateInput.value) || 0;
+    const currentPrice = parseFloat(priceInput.value) || 0;
+    
+    // Tính giá chưa thuế từ giá có thuế hiện tại (nếu có) hoặc lấy từ data
+    let priceBeforeTax = currentPrice / (1 + taxRate/100);
+    
+    // Nếu không có giá hiện tại, lấy giá vốn * 1.2
+    if (currentPrice === 0 || isNaN(priceBeforeTax)) {
+        const checkbox = document.querySelector(`.sale-product-check[data-msp="${msp}"]`);
+        const costPrice = parseFloat(checkbox.getAttribute('data-cost')) || 0;
+        priceBeforeTax = costPrice * 1.2;
+    }
+    
+    // Tính giá mới bao gồm thuế
+    const newPriceIncludingTax = accountingRound(priceBeforeTax * (1 + taxRate/100));
+    
+    priceInput.value = newPriceIncludingTax;
+    priceBeforeTaxSpan.textContent = safeFormatCurrency(accountingRound(priceBeforeTax));
+    
+    calculateSaleAmount(msp);
+}
 function calculateTotalSaleAmount() {
     let total = 0;
     document.querySelectorAll('.sale-amount').forEach(cell => {
@@ -538,12 +687,13 @@ function calculateSaleAmount(msp) {
     const amountCell = document.querySelector(`.sale-amount[data-msp="${msp}"]`);
     
     const quantity = parseFloat(qtyInput.value) || 0;
-    const price = parseFloat(priceInput.value) || 0;
-    const amount = quantity * price;
+    const priceIncludingTax = parseFloat(priceInput.value) || 0;
     
-    amountCell.textContent = window.formatCurrency(amount);
+    // Tính thành tiền bao gồm thuế
+    const amountIncludingTax = quantity * priceIncludingTax;
+    
+    amountCell.textContent = window.formatCurrency(amountIncludingTax);
 }
-
 function createSaleOrder() {
     if (!window.currentCompany) {
         alert('Vui lòng chọn công ty trước.');
@@ -571,18 +721,33 @@ function createSaleOrder() {
     const saleProducts = [];
     let totalAmount = 0;
     let totalCost = 0;
-    let totalDiscount = 0; // THÊM TÍNH TỔNG CHIẾT KHẤU
+    let totalTaxAmount = 0;
+    let totalBaseAmount = 0;
+    let totalExtraAmount = 0;
+    let totalDiscount = 0;
 
     document.querySelectorAll('.sale-product-check:checked').forEach(checkbox => {
         const msp = checkbox.getAttribute('data-msp');
         const qtyInput = document.querySelector(`.sale-quantity[data-msp="${msp}"]`);
         const priceInput = document.querySelector(`.sale-price[data-msp="${msp}"]`);
+        const basePriceInput = document.querySelector(`.sale-base-price[data-msp="${msp}"]`);
+        const taxRateInput = document.querySelector(`.sale-tax-rate[data-msp="${msp}"]`);
+        const extraAmountInput = document.querySelector(`.sale-extra-amount[data-msp="${msp}"]`);
         
         const quantity = parseFloat(qtyInput.value) || 0;
-        const sellingPrice = parseFloat(priceInput.value) || 0;
-        const amount = quantity * sellingPrice;
+        const priceIncludingTax = parseFloat(priceInput.value) || 0;
+        const basePrice = parseFloat(basePriceInput.value) || 0;
+        const taxRate = parseFloat(taxRateInput.value) || 0;
+        const extraAmount = parseFloat(extraAmountInput.value) || 0;
 
         if (quantity > 0) {
+            // Tính các thành phần
+            const taxAmountPerUnit = basePrice * taxRate / 100;
+            const amountIncludingTax = quantity * priceIncludingTax;
+            const amountBase = quantity * basePrice;
+            const amountTax = quantity * taxAmountPerUnit;
+            const amountExtra = quantity * extraAmount;
+
             // Tính giá vốn
             const hkd = window.hkdData[window.currentCompany];
             const aggregatedStock = getAggregatedStock(hkd);
@@ -592,15 +757,15 @@ function createSaleOrder() {
 
             // TÍNH CHIẾT KHẤU CHO TỪNG SẢN PHẨM
             let productDiscount = 0;
-            let finalPrice = sellingPrice;
+            let finalPriceIncludingTax = priceIncludingTax;
             
             if (discountValue > 0) {
                 if (discountType === 'percent') {
-                    productDiscount = sellingPrice * (discountValue / 100);
-                    finalPrice = sellingPrice - productDiscount;
+                    productDiscount = priceIncludingTax * (discountValue / 100);
+                    finalPriceIncludingTax = priceIncludingTax - productDiscount;
                 } else if (discountType === 'amount') {
                     productDiscount = discountValue;
-                    finalPrice = Math.max(sellingPrice - discountValue, 0);
+                    finalPriceIncludingTax = Math.max(priceIncludingTax - discountValue, 0);
                 }
                 totalDiscount += productDiscount * quantity;
             }
@@ -610,15 +775,25 @@ function createSaleOrder() {
                 name: product.name,
                 unit: product.unit,
                 quantity: quantity,
-                price: finalPrice, // GIÁ SAU CHIẾT KHẤU
-                originalPrice: sellingPrice, // GIÁ GỐC TRƯỚC CHIẾT KHẤU
-                amount: quantity * finalPrice,
+                basePrice: basePrice,
+                taxRate: taxRate,
+                taxAmountPerUnit: taxAmountPerUnit,
+                extraAmount: extraAmount,
+                priceIncludingTax: finalPriceIncludingTax,
+                originalPriceIncludingTax: priceIncludingTax,
+                amountIncludingTax: quantity * finalPriceIncludingTax,
+                amountBase: amountBase,
+                amountTax: amountTax,
+                amountExtra: amountExtra,
                 discount: productDiscount,
                 costPrice: costPrice,
                 costAmount: costAmount
             });
 
-            totalAmount += quantity * finalPrice;
+            totalAmount += quantity * finalPriceIncludingTax;
+            totalBaseAmount += amountBase;
+            totalTaxAmount += amountTax;
+            totalExtraAmount += amountExtra;
             totalCost += costAmount;
         }
     });
@@ -636,8 +811,11 @@ function createSaleOrder() {
         paymentMethod: paymentMethod,
         products: saleProducts,
         totalAmount: totalAmount,
+        totalBaseAmount: totalBaseAmount,
+        totalTaxAmount: totalTaxAmount,
+        totalExtraAmount: totalExtraAmount,
         totalCost: totalCost,
-        profit: totalAmount - totalCost,
+        profit: totalBaseAmount - totalCost,
         status: paymentMethod === 'credit' ? 'pending' : 'completed',
         discountNote: discountNote,
         discountType: discountType,
@@ -648,7 +826,6 @@ function createSaleOrder() {
         taxcode: taxcode,
         address: address
     };
-
 
     // Lưu đơn bán hàng
     const hkd = window.hkdData[window.currentCompany];
@@ -673,14 +850,16 @@ function createSaleOrder() {
         
         Mã đơn: ${saleOrder.id}
         Khách hàng: ${customer}
-        Tổng tiền: ${safeFormatCurrency(totalAmount)}
+        Tổng tiền (có thuế): ${safeFormatCurrency(totalAmount)}
+        Tiền chưa thuế: ${safeFormatCurrency(totalBaseAmount)}
+        Thuế GTGT: ${safeFormatCurrency(totalTaxAmount)}
+        Tiền cộng thêm: ${safeFormatCurrency(totalExtraAmount)}
         Lợi nhuận: ${safeFormatCurrency(saleOrder.profit)}
         Trạng thái: ${paymentMethod === 'credit' ? 'Chờ thanh toán' : 'Đã thanh toán'}
     `;
     
     alert(successMessage);
     
-    // SỬA DÒNG NÀY: thay resetSaleForm() bằng safeResetSaleForm()
     safeResetSaleForm();
     
     // Cập nhật giao diện
@@ -696,10 +875,8 @@ function createSaleOrder() {
     }
 }
 
-// THÊM HÀM NÀY VÀO FILE banhang.js - đặt gần hàm resetSaleForm
-
 function safeResetSaleForm() {
-    // Reset các trường cơ bản - kiểm tra tồn tại trước
+    // Reset các trường cơ bản
     const fields = [
         'sale-customer', 'sale-phone', 'sale-taxcode', 'sale-address',
         'sale-date', 'sale-payment-method'
@@ -718,7 +895,7 @@ function safeResetSaleForm() {
         }
     });
     
-    // Reset các trường chiết khấu nếu có - KIỂM TRA TỒN TẠI
+    // Reset các trường chiết khấu
     const discountNote = document.getElementById('discount-note');
     const discountType = document.getElementById('discount-type');
     const discountValue = document.getElementById('discount-value');
@@ -727,22 +904,43 @@ function safeResetSaleForm() {
     if (discountType) discountType.value = 'percent';
     if (discountValue) discountValue.value = '0';
     
+    // Reset các trường tính toán
+    document.getElementById('sale-extra-amount-global').value = '0';
+    
     // Reset danh sách sản phẩm
     document.querySelectorAll('.sale-product-check').forEach(cb => {
-        if (cb) cb.checked = false;
+        if (cb) {
+            cb.checked = false;
+            const msp = cb.getAttribute('data-msp');
+            const costPrice = parseFloat(cb.getAttribute('data-cost')) || 0;
+            const basePrice = costPrice * 1.2;
+            
+            // Reset giá chưa thuế
+            const basePriceInput = document.querySelector(`.sale-base-price[data-msp="${msp}"]`);
+            if (basePriceInput) {
+                basePriceInput.value = accountingRound(basePrice);
+            }
+            
+            // Reset thuế suất
+            const taxRateInput = document.querySelector(`.sale-tax-rate[data-msp="${msp}"]`);
+            if (taxRateInput) {
+                taxRateInput.value = '10';
+            }
+            
+            // Reset tiền cộng thêm
+            const extraAmountInput = document.querySelector(`.sale-extra-amount[data-msp="${msp}"]`);
+            if (extraAmountInput) {
+                extraAmountInput.value = '0';
+            }
+            
+            // Cập nhật giá bán
+            updateFinalPrice(msp);
+        }
     });
     
     document.querySelectorAll('.sale-quantity').forEach(input => {
         if (input) {
-            const msp = input.getAttribute('data-msp');
-            const priceInput = input.closest('tr')?.querySelector('.sale-price');
-            if (priceInput) {
-                const originalPrice = priceInput.getAttribute('data-price') || priceInput.getAttribute('data-original-price') || priceInput.value;
-                input.value = '0';
-                priceInput.value = originalPrice;
-            } else {
-                input.value = '0';
-            }
+            input.value = '0';
         }
     });
     
@@ -1585,3 +1783,8 @@ window.receivePayment = receivePayment;
 // Thêm vào cuối file banhang.js
 window.applyFixedProfitPerProduct = applyFixedProfitPerProduct;
 window.showProfitExamples = showProfitExamples;
+window.updateSellingPrice = updateSellingPrice;
+// Thêm vào cuối file banhang.js
+window.updateFinalPrice = updateFinalPrice;
+window.updateFinalPriceFromBase = updateFinalPriceFromBase;
+window.applyExtraAmountToAll = applyExtraAmountToAll;
