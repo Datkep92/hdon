@@ -473,9 +473,8 @@
                             </div>
                         </div>
 
-                        <!-- Trong tab ban-hang -->
-<div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-    <!-- Trường % lợi nhuận (giữ nguyên) -->
+<div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+    <!-- Trường % lợi nhuận -->
     <div class="form-group">
         <label for="sale-margin">📈 % Lợi nhuận mong muốn</label>
         <div style="display: flex; gap: 10px; align-items: center;">
@@ -484,14 +483,23 @@
         </div>
     </div>
     
-    <!-- TRƯỜNG MỚI: Lợi nhuận cố định/sản phẩm -->
+    <!-- Trường lợi nhuận cố định -->
     <div class="form-group">
         <label for="fixed-profit-per-product">💰 Lợi nhuận cố định/SP</label>
         <div style="display: flex; gap: 10px; align-items: center;">
             <input type="number" id="fixed-profit-per-product" class="form-control" value="1000" min="0" step="100" style="width: 120px;">
             <button onclick="applyFixedProfitPerProduct()" class="btn-sm btn-primary">Áp dụng tiền/SP</button>
         </div>
-        <small style="color: #666; font-size: 12px;">Giá bán = Giá vốn + Số tiền này</small>
+    </div>
+    
+    <!-- TRƯỜNG MỚI: Tiền cộng thêm -->
+    <div class="form-group">
+        <label for="sale-extra-amount-global">➕ Tiền cộng thêm/SP</label>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="number" id="sale-extra-amount-global" class="form-control" value="0" min="0" step="100" style="width: 120px;">
+            <button onclick="applyExtraAmountToAll()" class="btn-sm btn-primary">Áp dụng tiền cộng</button>
+        </div>
+        <small style="color: #666; font-size: 12px;">Cộng thêm vào giá bán sau thuế</small>
     </div>
 </div>
 <!-- Thêm vào sau 2 trường input -->
