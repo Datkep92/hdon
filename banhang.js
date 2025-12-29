@@ -134,32 +134,121 @@ function initMarginCalculator() {
     }
 }
 
-function applyMarginToAll() {
-    const margin = parseFloat(document.getElementById('sale-margin').value) || 20;
+/**
+ * Áp dụng lợi nhuận cố định cho mỗi sản phẩm
+ */
+function applyFixedProfitPerProduct() {
+    const fixedProfit = parseFloat(document.getElementById('fixed-profit-per-product').value) || 0;
+    
+    if (fixedProfit < 0) {
+        alert('Lợi nhuận cố định không được âm');
+        return;
+    }
     
     document.querySelectorAll('.sale-product-check').forEach(checkbox => {
         const msp = checkbox.getAttribute('data-msp');
         const costPrice = parseFloat(checkbox.getAttribute('data-cost')) || 0;
-        const sellingPrice = costPrice * (1 + margin / 100);
+        
+        // Tính giá bán: Giá vốn + Lợi nhuận cố định
+        const sellingPrice = costPrice + fixedProfit;
         
         const priceInput = document.querySelector(`.sale-price[data-msp="${msp}"]`);
-        priceInput.value = accountingRound(sellingPrice);
-        
-        // Cập nhật số lượng nếu đã chọn
-        if (checkbox.checked) {
-            const qtyInput = document.querySelector(`.sale-quantity[data-msp="${msp}"]`);
-            if (parseFloat(qtyInput.value) === 0) {
-                qtyInput.value = '1';
+        if (priceInput) {
+            priceInput.value = accountingRound(sellingPrice);
+            
+            // Cập nhật số lượng nếu đã chọn
+            if (checkbox.checked) {
+                const qtyInput = document.querySelector(`.sale-quantity[data-msp="${msp}"]`);
+                if (qtyInput && parseFloat(qtyInput.value) === 0) {
+                    qtyInput.value = '1';
+                }
             }
+            
+            calculateSaleAmount(msp);
         }
-        
-        calculateSaleAmount(msp);
     });
     
     calculateTotalSaleAmount();
     updateSaleSummary();
 }
 
+/**
+ * Áp dụng % lợi nhuận (giữ nguyên logic cũ)
+ */
+function applyMarginToAll() {
+    const margin = parseFloat(document.getElementById('sale-margin').value) || 20;
+    
+    if (margin < 0 || margin > 100) {
+        alert('Phần trăm lợi nhuận phải từ 0-100%');
+        return;
+    }
+    
+    document.querySelectorAll('.sale-product-check').forEach(checkbox => {
+        const msp = checkbox.getAttribute('data-msp');
+        const costPrice = parseFloat(checkbox.getAttribute('data-cost')) || 0;
+        
+        // Tính giá bán: Giá vốn × (1 + margin/100)
+        const sellingPrice = costPrice * (1 + margin / 100);
+        
+        const priceInput = document.querySelector(`.sale-price[data-msp="${msp}"]`);
+        if (priceInput) {
+            priceInput.value = accountingRound(sellingPrice);
+            
+            // Cập nhật số lượng nếu đã chọn
+            if (checkbox.checked) {
+                const qtyInput = document.querySelector(`.sale-quantity[data-msp="${msp}"]`);
+                if (qtyInput && parseFloat(qtyInput.value) === 0) {
+                    qtyInput.value = '1';
+                }
+            }
+            
+            calculateSaleAmount(msp);
+        }
+    });
+    
+    calculateTotalSaleAmount();
+    updateSaleSummary();
+}
+/**
+ * Hiển thị ví dụ tính toán cho cả 2 phương pháp
+ */
+function showProfitExamples() {
+    const costPrice = 336364; // Ví dụ: Giá vốn Bia Tiger
+    
+    // Tính theo %
+    const margin = parseFloat(document.getElementById('sale-margin').value) || 20;
+    const priceByPercent = costPrice * (1 + margin / 100);
+    
+    // Tính theo số tiền cố định
+    const fixedProfit = parseFloat(document.getElementById('fixed-profit-per-product').value) || 1000;
+    const priceByFixed = costPrice + fixedProfit;
+    
+    const examples = `
+        <div style="padding: 15px; background: #f8f9fa; border-radius: 4px;">
+            <h5>Ví dụ tính toán với giá vốn: ${formatCurrency(costPrice)}</h5>
+            
+            <div style="margin-top: 10px;">
+                <strong>1. Theo % lợi nhuận (${margin}%):</strong><br>
+                - Lợi nhuận/SP: ${formatCurrency(costPrice * margin / 100)}<br>
+                - <strong>Giá bán: ${formatCurrency(priceByPercent)}</strong>
+            </div>
+            
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
+                <strong>2. Theo lợi nhuận cố định (${formatCurrency(fixedProfit)}/SP):</strong><br>
+                - Giá vốn: ${formatCurrency(costPrice)}<br>
+                - + Lợi nhuận cố định: ${formatCurrency(fixedProfit)}<br>
+                - <strong>Giá bán: ${formatCurrency(priceByFixed)}</strong>
+            </div>
+            
+            <div style="margin-top: 15px; padding: 10px; background: #e8f5e8; border-radius: 4px;">
+                <strong>Chênh lệch:</strong> ${formatCurrency(Math.abs(priceByPercent - priceByFixed))}
+                ${priceByPercent > priceByFixed ? '(Phương pháp % cao hơn)' : '(Phương pháp cố định cao hơn)'}
+            </div>
+        </div>
+    `;
+    
+    window.showModal('So Sánh Cách Tính Giá Bán', examples);
+}
 function loadSaleProducts() {
     const container = document.getElementById('sale-products-container');
     if (!container) return;
@@ -1493,3 +1582,6 @@ window.createSaleOrder = createSaleOrder;
 window.viewSaleOrderDetail = viewSaleOrderDetail;
 window.createSaleInvoice = createSaleInvoice;
 window.receivePayment = receivePayment;
+// Thêm vào cuối file banhang.js
+window.applyFixedProfitPerProduct = applyFixedProfitPerProduct;
+window.showProfitExamples = showProfitExamples;

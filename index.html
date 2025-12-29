@@ -473,27 +473,33 @@
                             </div>
                         </div>
 
-                        <!-- Bộ lọc và điều chỉnh giá -->
-                        <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                            <div class="form-group">
-                                <label for="sale-product-search">🔍 Tìm kiếm sản phẩm</label>
-                                <input type="text" id="sale-product-search" class="form-control" placeholder="Tìm theo MSP, tên...">
-                            </div>
-                            <div class="form-group">
-                                <label for="sale-margin">📈 % Lợi nhuận mong muốn</label>
-                                <div style="display: flex; gap: 10px;">
-                                    <input type="number" id="sale-margin" class="form-control" value="20" min="0" max="100" step="1" style="width: 100px;">
-                                    <button onclick="applyMarginToAll()" class="btn-sm btn-primary">Áp dụng</button>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label style="display: block; margin-bottom: 5px;">Thao tác nhanh</label>
-                                <div style="display: flex; gap: 5px;">
-                                    <button onclick="selectAllProducts()" class="btn-sm btn-outline-primary">Chọn tất cả</button>
-                                    <button onclick="deselectAllProducts()" class="btn-sm btn-outline-secondary">Bỏ chọn</button>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- Trong tab ban-hang -->
+<div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+    <!-- Trường % lợi nhuận (giữ nguyên) -->
+    <div class="form-group">
+        <label for="sale-margin">📈 % Lợi nhuận mong muốn</label>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="number" id="sale-margin" class="form-control" value="20" min="0" max="100" step="1" style="width: 100px;">
+            <button onclick="applyMarginToAll()" class="btn-sm btn-primary">Áp dụng %</button>
+        </div>
+    </div>
+    
+    <!-- TRƯỜNG MỚI: Lợi nhuận cố định/sản phẩm -->
+    <div class="form-group">
+        <label for="fixed-profit-per-product">💰 Lợi nhuận cố định/SP</label>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="number" id="fixed-profit-per-product" class="form-control" value="1000" min="0" step="100" style="width: 120px;">
+            <button onclick="applyFixedProfitPerProduct()" class="btn-sm btn-primary">Áp dụng tiền/SP</button>
+        </div>
+        <small style="color: #666; font-size: 12px;">Giá bán = Giá vốn + Số tiền này</small>
+    </div>
+</div>
+<!-- Thêm vào sau 2 trường input -->
+<div style="text-align: center; margin-top: 10px;">
+    <button onclick="showProfitExamples()" class="btn-sm btn-outline-info">
+        📊 Xem ví dụ tính toán
+    </button>
+</div>
 
                         <!-- Danh sách sản phẩm -->
                         <div class="card">
